@@ -2,7 +2,7 @@
 
 Bienvenido al repositorio oficial de mi Trabajo de Fin de Grado para el Grado en Ingeniería Informática.
 
-Este proyecto es una solución web integral diseñada para democratizar el análisis financiero avanzado. Ante la sobresaturación de opciones y el "ruido" del mercado actual, esta plataforma transforma la incertidumbre en información estructurada cuantitativa. Está adaptada a la particularidad fiscal española (diferimiento fiscal en Fondos de Inversión), ofreciendo al inversor particular herramientas de soporte a la decisión habitualmente reservadas a profesionale.
+Este proyecto es una solución web integral diseñada para democratizar el análisis financiero avanzado. Ante la sobresaturación de opciones y el "ruido" del mercado actual, esta plataforma transforma la incertidumbre en información estructurada cuantitativa. Está adaptada a la particularidad fiscal española (diferimiento fiscal en Fondos de Inversión), ofreciendo al inversor particular herramientas de soporte a la decisión habitualmente reservadas a profesionales.
 
 ## 🚀 Funcionalidades Principales
 
