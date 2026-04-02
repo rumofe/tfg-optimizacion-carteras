@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(mkdir -p backend/app/api backend/app/core backend/app/db backend/app/schemas backend/etl backend/optimizer backend/backtesting backend/tests frontend/src/components frontend/src/pages frontend/src/services frontend/public docs data)",
-      "Bash(touch backend/app/api/.gitkeep backend/app/core/.gitkeep backend/app/db/.gitkeep backend/app/schemas/.gitkeep backend/etl/.gitkeep backend/optimizer/.gitkeep backend/backtesting/.gitkeep backend/tests/.gitkeep frontend/src/components/.gitkeep frontend/src/pages/.gitkeep frontend/src/services/.gitkeep frontend/public/.gitkeep docs/.gitkeep data/.gitkeep)"
+      "Bash(touch backend/app/api/.gitkeep backend/app/core/.gitkeep backend/app/db/.gitkeep backend/app/schemas/.gitkeep backend/etl/.gitkeep backend/optimizer/.gitkeep backend/backtesting/.gitkeep backend/tests/.gitkeep frontend/src/components/.gitkeep frontend/src/pages/.gitkeep frontend/src/services/.gitkeep frontend/public/.gitkeep docs/.gitkeep data/.gitkeep)",
+      "Bash(npm create:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/rumofe/AppData/Roaming/**)",
+      "Read(//c/nvm/**)",
+      "Read(//c/Users/rumofe/AppData/Local/**)",
+      "Bash(cmd.exe:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/vite build:*)"
     ]
   }
 }
