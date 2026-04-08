@@ -25,10 +25,10 @@ function downsample<T>(arr: T[], maxLen: number): T[] {
 const INPUT: CSSProperties = {
   width: '100%',
   padding: '10px 14px',
-  backgroundColor: '#0d1117',
-  border: '1px solid #30363d',
-  borderRadius: '6px',
-  color: '#e6edf3',
+  backgroundColor: 'var(--bg)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  color: 'var(--text)',
   fontSize: '14px',
   outline: 'none',
   boxSizing: 'border-box',
@@ -36,17 +36,18 @@ const INPUT: CSSProperties = {
 
 const LABEL: CSSProperties = {
   display: 'block',
-  color: '#8b949e',
-  fontSize: '12px',
+  color: 'var(--text-2)',
+  fontSize: '11px',
   marginBottom: '6px',
-  fontWeight: 500,
-  letterSpacing: '0.4px',
+  fontWeight: 600,
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase',
 };
 
 const CARD: CSSProperties = {
-  backgroundColor: '#161b22',
-  border: '1px solid #30363d',
-  borderRadius: '10px',
+  backgroundColor: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
   padding: '24px',
 };
 
@@ -141,10 +142,10 @@ export default function BacktestPage() {
 
   return (
     <div>
-      <h1 style={{ color: '#e6edf3', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
+      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.3px' }}>
         Backtesting
       </h1>
-      <p style={{ color: '#8b949e', fontSize: '13px', margin: '0 0 28px' }}>
+      <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>
         Evalúa el rendimiento histórico de tu cartera vs. SPY — con análisis de periodos de crisis
       </p>
 
@@ -154,7 +155,7 @@ export default function BacktestPage() {
         {/* Toggle de modo */}
         <div style={{
           display: 'flex',
-          backgroundColor: '#0d1117',
+          backgroundColor: 'var(--bg)',
           borderRadius: '8px',
           padding: '4px',
           marginBottom: '20px',
@@ -167,8 +168,8 @@ export default function BacktestPage() {
               onClick={() => { setModo(m); setError(''); setResult(null); }}
               style={{
                 padding: '7px 18px',
-                backgroundColor: modo === m ? '#21262d' : 'transparent',
-                color: modo === m ? '#e6edf3' : '#8b949e',
+                backgroundColor: modo === m ? 'var(--raised)' : 'transparent',
+                color: modo === m ? 'var(--text)' : 'var(--text-2)',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
@@ -189,10 +190,10 @@ export default function BacktestPage() {
             {portfolios.length === 0 ? (
               <div style={{
                 padding: '14px 16px',
-                backgroundColor: '#0d1117',
-                border: '1px solid #30363d',
+                backgroundColor: 'var(--bg)',
+                border: '1px solid var(--border)',
                 borderRadius: '6px',
-                color: '#8b949e',
+                color: 'var(--text-2)',
                 fontSize: '13px',
               }}>
                 No tienes carteras guardadas. Ve al Optimizador y guarda una primero.
@@ -232,14 +233,14 @@ export default function BacktestPage() {
                       .map((a) => (
                         <div key={a.ticker} style={{
                           display: 'flex', alignItems: 'center', gap: '6px',
-                          backgroundColor: '#21262d',
-                          border: '1px solid #30363d',
+                          backgroundColor: 'var(--raised)',
+                          border: '1px solid var(--border)',
                           borderRadius: '20px',
                           padding: '3px 10px',
                           fontSize: '12px',
                         }}>
-                          <span style={{ color: '#e6edf3', fontWeight: 700 }}>{a.ticker}</span>
-                          <span style={{ color: '#8b949e' }}>{(a.peso_asignado * 100).toFixed(1)}%</span>
+                          <span style={{ color: 'var(--text)', fontWeight: 700 }}>{a.ticker}</span>
+                          <span style={{ color: 'var(--text-2)' }}>{(a.peso_asignado * 100).toFixed(1)}%</span>
                         </div>
                       ))}
                   </div>
@@ -286,9 +287,9 @@ export default function BacktestPage() {
                 onClick={() => setPeriod(p)}
                 style={{
                   padding: '7px 14px',
-                  backgroundColor: period === p ? '#1f6feb' : '#21262d',
-                  color: period === p ? '#fff' : '#8b949e',
-                  border: `1px solid ${period === p ? '#1f6feb' : '#30363d'}`,
+                  backgroundColor: period === p ? 'var(--accent)' : 'var(--raised)',
+                  color: period === p ? '#fff' : 'var(--text-2)',
+                  border: `1px solid ${period === p ? 'var(--accent)' : 'var(--border)'}`,
                   borderRadius: '6px',
                   fontSize: '13px',
                   fontWeight: period === p ? 600 : 400,
@@ -303,16 +304,16 @@ export default function BacktestPage() {
         </div>
 
         {modo === 'manual' && (
-          <p style={{ color: '#8b949e', fontSize: '11px', margin: '0 0 14px' }}>
+          <p style={{ color: 'var(--text-2)', fontSize: '11px', margin: '0 0 14px' }}>
             Ejemplo: tickers "AAPL, MSFT, GOOG" con pesos "40, 35, 25" → 40 %, 35 %, 25 %
           </p>
         )}
 
         {error && (
           <div style={{
-            color: '#f85149', fontSize: '13px', marginBottom: '12px',
-            padding: '9px 12px', backgroundColor: 'rgba(248, 81, 73, 0.08)',
-            border: '1px solid rgba(248, 81, 73, 0.3)', borderRadius: '6px',
+            color: 'var(--red)', fontSize: '13px', marginBottom: '12px',
+            padding: '9px 12px', backgroundColor: 'rgba(232, 64, 64, 0.08)',
+            border: '1px solid rgba(232, 64, 64, 0.3)', borderRadius: '6px',
           }}>
             {error}
           </div>
@@ -323,7 +324,7 @@ export default function BacktestPage() {
           disabled={loading}
           style={{
             padding: '10px 24px',
-            backgroundColor: loading ? '#21262d' : '#1f6feb',
+            backgroundColor: loading ? 'var(--raised)' : 'var(--accent)',
             color: '#fff', border: 'none', borderRadius: '6px',
             fontSize: '14px', fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
@@ -338,28 +339,28 @@ export default function BacktestPage() {
         <>
           {/* LineChart */}
           <div style={{ ...CARD, marginBottom: '20px' }}>
-            <h3 style={{ color: '#e6edf3', fontSize: '14px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Evolución del valor (base 100)
             </h3>
             <ResponsiveContainer width="100%" height={380}>
               <LineChart data={chartData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="fecha"
-                  stroke="#21262d"
-                  tick={{ fill: '#8b949e', fontSize: 11 }}
+                  stroke="var(--border)"
+                  tick={{ fill: 'var(--text-2)', fontSize: 11 }}
                   tickFormatter={(v: string) => v.slice(0, 7)}
                   interval="preserveStartEnd"
                 />
-                <YAxis stroke="#21262d" tick={{ fill: '#8b949e', fontSize: 11 }} width={50} />
+                <YAxis stroke="var(--border)" tick={{ fill: 'var(--text-2)', fontSize: 11 }} width={50} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '8px', fontSize: '12px' }}
-                  labelStyle={{ color: '#8b949e', marginBottom: '4px' }}
-                  itemStyle={{ color: '#e6edf3' }}
+                  contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                  labelStyle={{ color: 'var(--text-2)', marginBottom: '4px' }}
+                  itemStyle={{ color: 'var(--text)' }}
                 />
-                <Legend formatter={(value) => <span style={{ color: '#e6edf3', fontSize: '13px' }}>{value}</span>} />
-                <Line type="monotone" dataKey="valor_cartera" stroke="#58a6ff" dot={false} name="Cartera" strokeWidth={2} />
-                <Line type="monotone" dataKey="valor_benchmark" stroke="#3fb950" dot={false} name="SPY (Benchmark)" strokeWidth={2} strokeDasharray="5 3" />
+                <Legend formatter={(value) => <span style={{ color: 'var(--text)', fontSize: '13px' }}>{value}</span>} />
+                <Line type="monotone" dataKey="valor_cartera" stroke="var(--accent)" dot={false} name="Cartera" strokeWidth={2} />
+                <Line type="monotone" dataKey="valor_benchmark" stroke="var(--green)" dot={false} name="SPY (Benchmark)" strokeWidth={2} strokeDasharray="5 3" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -367,14 +368,14 @@ export default function BacktestPage() {
           {/* Métricas fila 1 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
             {[
-              { label: 'Rent. Acumulada',  value: pct(result.rentabilidad_acumulada),  color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149' },
-              { label: 'Ret. Anualizado',  value: pct(result.retorno_anualizado),       color: result.retorno_anualizado >= 0 ? '#3fb950' : '#f85149' },
-              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada), color: '#d29922' },
-              { label: 'Max Drawdown',     value: pct(result.max_drawdown),             color: '#f85149' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
-                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>{label.toUpperCase()}</div>
-                <div style={{ color, fontSize: '20px', fontWeight: 700 }}>{value}</div>
+              { label: 'Rent. Acumulada',    value: pct(result.rentabilidad_acumulada),  borderColor: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)',  textColor: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)' },
+              { label: 'Ret. Anualizado',    value: pct(result.retorno_anualizado),       borderColor: result.retorno_anualizado >= 0 ? 'var(--green)' : 'var(--red)',      textColor: result.retorno_anualizado >= 0 ? 'var(--green)' : 'var(--red)' },
+              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada),  borderColor: 'var(--amber)',   textColor: 'var(--amber)' },
+              { label: 'Max Drawdown',       value: pct(result.max_drawdown),            borderColor: 'var(--red)',     textColor: 'var(--red)' },
+            ].map(({ label, value, borderColor, textColor }) => (
+              <div key={label} style={{ ...CARD, padding: '16px 20px', borderLeft: `3px solid ${borderColor}` }}>
+                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</div>
+                <div style={{ color: textColor, fontSize: '22px', fontWeight: 700 }}>{value}</div>
               </div>
             ))}
           </div>
@@ -382,14 +383,14 @@ export default function BacktestPage() {
           {/* Métricas fila 2 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
-              { label: 'Sharpe Ratio',  value: fmt(result.sharpe_ratio),  color: '#58a6ff' },
-              { label: 'Sortino Ratio', value: fmt(result.sortino_ratio), color: '#bc8cff' },
-              { label: 'Calmar Ratio',  value: fmt(result.calmar_ratio),  color: '#79c0ff' },
-              { label: 'Beta (vs SPY)', value: result.beta !== null ? fmt(result.beta) : '—', color: '#d29922' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
-                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>{label.toUpperCase()}</div>
-                <div style={{ color, fontSize: '20px', fontWeight: 700 }}>{value}</div>
+              { label: 'Sharpe Ratio',  value: fmt(result.sharpe_ratio),                                          borderColor: 'var(--accent)',  textColor: 'var(--accent)' },
+              { label: 'Sortino Ratio', value: fmt(result.sortino_ratio),                                         borderColor: 'var(--purple)',  textColor: 'var(--purple)' },
+              { label: 'Calmar Ratio',  value: fmt(result.calmar_ratio),                                          borderColor: '#22d3ee',        textColor: '#22d3ee' },
+              { label: 'Beta (vs SPY)', value: result.beta !== null ? fmt(result.beta) : '—',                     borderColor: 'var(--amber)',   textColor: 'var(--amber)' },
+            ].map(({ label, value, borderColor, textColor }) => (
+              <div key={label} style={{ ...CARD, padding: '16px 20px', borderLeft: `3px solid ${borderColor}` }}>
+                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</div>
+                <div style={{ color: textColor, fontSize: '22px', fontWeight: 700 }}>{value}</div>
               </div>
             ))}
           </div>
@@ -397,20 +398,20 @@ export default function BacktestPage() {
           {/* Benchmark comparison */}
           <div style={{ ...CARD, marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
-              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>TU CARTERA</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149' }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>TU CARTERA</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)' }}>
                 {pct(result.rentabilidad_acumulada)}
               </div>
-              <div style={{ color: '#8b949e', fontSize: '12px', marginTop: '4px' }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
                 {pct(result.retorno_anualizado)} anualizado · Sharpe {fmt(result.sharpe_ratio)}
               </div>
             </div>
             <div>
-              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>BENCHMARK (SPY)</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? '#3fb950' : '#f85149' }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>BENCHMARK (SPY)</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? 'var(--green)' : 'var(--red)' }}>
                 {pct(result.benchmark_rentabilidad)}
               </div>
-              <div style={{ color: '#8b949e', fontSize: '12px', marginTop: '4px' }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
                 {pct(result.benchmark_retorno_anualizado)} anualizado
               </div>
             </div>
@@ -418,7 +419,7 @@ export default function BacktestPage() {
 
           {/* Crisis Analysis */}
           <div style={CARD}>
-            <h3 style={{ color: '#e6edf3', fontSize: '14px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Análisis de periodos de crisis
             </h3>
             <div style={{ overflowX: 'auto' }}>
@@ -426,7 +427,7 @@ export default function BacktestPage() {
                 <thead>
                   <tr>
                     {['Periodo', 'Intervalo', 'Rent. Cartera', 'Rent. Benchmark', 'Sharpe', 'Sortino', 'MaxDD Cart.', 'Beta'].map((h) => (
-                      <th key={h} style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, textAlign: 'left', padding: '0 12px 10px 0', borderBottom: '1px solid #30363d', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
+                      <th key={h} style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 500, textAlign: 'left', padding: '0 12px 10px 0', borderBottom: '1px solid var(--border)', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
                         {h.toUpperCase()}
                       </th>
                     ))}
@@ -435,35 +436,35 @@ export default function BacktestPage() {
                 <tbody>
                   {Object.entries(result.crisis).map(([name, data]) => (
                     <tr key={name}>
-                      <td style={{ color: '#e6edf3', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <td style={{ color: 'var(--text)', padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {CRISIS_LABELS[name] ?? name}
                       </td>
                       {data.disponible ? (
                         <>
-                          <td style={{ color: '#8b949e', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          <td style={{ color: 'var(--text-2)', padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '12px', whiteSpace: 'nowrap' }}>
                             {data.periodo?.inicio} / {data.periodo?.fin}
                           </td>
-                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700, color: (data.cartera?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149' }}>
+                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px', fontWeight: 700, color: (data.cartera?.rentabilidad_acumulada ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
                             {pct(data.cartera?.rentabilidad_acumulada ?? 0)}
                           </td>
-                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700, color: (data.benchmark?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149' }}>
+                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px', fontWeight: 700, color: (data.benchmark?.rentabilidad_acumulada ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
                             {pct(data.benchmark?.rentabilidad_acumulada ?? 0)}
                           </td>
-                          <td style={{ color: '#58a6ff', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
+                          <td style={{ color: 'var(--accent)', padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px' }}>
                             {fmt(data.cartera?.sharpe_ratio ?? 0)}
                           </td>
-                          <td style={{ color: '#bc8cff', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
+                          <td style={{ color: 'var(--purple)', padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px' }}>
                             {fmt(data.cartera?.sortino_ratio ?? 0)}
                           </td>
-                          <td style={{ color: '#f85149', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
+                          <td style={{ color: 'var(--red)', padding: '13px 12px 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px' }}>
                             {pct(data.cartera?.max_drawdown ?? 0)}
                           </td>
-                          <td style={{ color: '#d29922', padding: '13px 0 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
+                          <td style={{ color: 'var(--amber)', padding: '13px 0 13px 0', borderBottom: '1px solid var(--raised)', fontSize: '13px' }}>
                             {data.cartera?.beta !== null && data.cartera?.beta !== undefined ? fmt(data.cartera.beta) : '—'}
                           </td>
                         </>
                       ) : (
-                        <td colSpan={7} style={{ color: '#8b949e', padding: '13px 0', borderBottom: '1px solid #21262d', fontSize: '12px', fontStyle: 'italic' }}>
+                        <td colSpan={7} style={{ color: 'var(--text-2)', padding: '13px 0', borderBottom: '1px solid var(--raised)', fontSize: '12px', fontStyle: 'italic' }}>
                           Datos no disponibles para este periodo en el rango seleccionado
                         </td>
                       )}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { searchAssets, SearchResult } from '../services/api';
 
 const LOGO_BASE = 'https://assets.parqet.com/logos/symbol/';
-const COLORS = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#79c0ff', '#fb8500', '#ff6b9d'];
+const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
 const TIPO_BADGE: Record<string, string> = {
   EQUITY:     'Acción',
@@ -19,8 +19,8 @@ function TickerLogo({ ticker, size = 32 }: { ticker: string; size?: number }) {
     return (
       <div style={{
         width: size, height: size, borderRadius: '50%',
-        backgroundColor: '#0d1117',
-        border: `1px solid #30363d`,
+        backgroundColor: 'var(--bg)',
+        border: `1px solid var(--border)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: size * 0.38, fontWeight: 700, color, flexShrink: 0,
       }}>
@@ -38,7 +38,7 @@ function TickerLogo({ ticker, size = 32 }: { ticker: string; size?: number }) {
       style={{
         borderRadius: '50%', objectFit: 'contain',
         backgroundColor: '#fff', flexShrink: 0,
-        border: '1px solid #30363d',
+        border: '1px solid var(--border)',
       }}
       onError={() => setFailed(true)}
     />
@@ -140,14 +140,14 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
               key={ticker}
               style={{
                 display: 'flex', alignItems: 'center', gap: '7px',
-                backgroundColor: '#21262d',
+                backgroundColor: 'var(--raised)',
                 border: `1px solid ${COLORS[i % COLORS.length]}40`,
                 borderRadius: '20px',
                 padding: '4px 8px 4px 5px',
               }}
             >
               <TickerLogo ticker={ticker} size={22} />
-              <span style={{ color: '#e6edf3', fontSize: '13px', fontWeight: 700 }}>
+              <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 700 }}>
                 {ticker}
               </span>
               <button
@@ -155,7 +155,7 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
                 onClick={() => removeTicker(ticker)}
                 style={{
                   background: 'none', border: 'none',
-                  color: '#8b949e', cursor: 'pointer',
+                  color: 'var(--text-2)', cursor: 'pointer',
                   padding: '0 0 0 2px', fontSize: '15px',
                   lineHeight: 1, display: 'flex', alignItems: 'center',
                 }}
@@ -187,10 +187,10 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
           style={{
             width: '100%',
             padding: '10px 36px 10px 14px',
-            backgroundColor: canAdd ? '#0d1117' : '#161b22',
-            border: '1px solid #30363d',
+            backgroundColor: canAdd ? 'var(--bg)' : 'var(--surface)',
+            border: '1px solid var(--border)',
             borderRadius: '6px',
-            color: '#e6edf3',
+            color: 'var(--text)',
             fontSize: '14px',
             outline: 'none',
             boxSizing: 'border-box',
@@ -202,7 +202,7 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
         <div style={{
           position: 'absolute', right: '12px', top: '50%',
           transform: 'translateY(-50%)',
-          color: '#8b949e', fontSize: '14px', pointerEvents: 'none',
+          color: 'var(--text-2)', fontSize: '14px', pointerEvents: 'none',
         }}>
           {loadingSearch ? '⟳' : '⌕'}
         </div>
@@ -213,8 +213,8 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           zIndex: 200,
-          backgroundColor: '#21262d',
-          border: '1px solid #30363d',
+          backgroundColor: 'var(--raised)',
+          border: '1px solid var(--border)',
           borderRadius: '8px',
           overflow: 'hidden',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
@@ -228,18 +228,18 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
                 display: 'flex', alignItems: 'center', gap: '12px',
                 padding: '10px 14px',
                 cursor: 'pointer',
-                backgroundColor: i === highlightIdx ? '#30363d' : 'transparent',
-                borderBottom: i < results.length - 1 ? '1px solid #30363d' : 'none',
+                backgroundColor: i === highlightIdx ? 'var(--border)' : 'transparent',
+                borderBottom: i < results.length - 1 ? '1px solid var(--border)' : 'none',
                 transition: 'background-color 0.1s',
               }}
             >
               <TickerLogo ticker={r.ticker} size={32} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ color: '#e6edf3', fontWeight: 700, fontSize: '14px' }}>
+                <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: '14px' }}>
                   {r.ticker}
                 </span>
                 <span style={{
-                  color: '#8b949e', fontSize: '12px',
+                  color: 'var(--text-2)', fontSize: '12px',
                   marginLeft: '8px',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
@@ -248,9 +248,9 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
               </div>
               {r.tipo && (
                 <span style={{
-                  color: '#8b949e', fontSize: '10px', fontWeight: 500,
-                  backgroundColor: '#0d1117',
-                  border: '1px solid #30363d',
+                  color: 'var(--text-2)', fontSize: '10px', fontWeight: 500,
+                  backgroundColor: 'var(--bg)',
+                  border: '1px solid var(--border)',
                   borderRadius: '4px', padding: '2px 6px',
                   whiteSpace: 'nowrap', flexShrink: 0,
                 }}>
@@ -266,10 +266,10 @@ export default function TickerSearch({ selected, onChange, maxItems = 10 }: Prop
       {open && query.trim().length > 0 && !loadingSearch && results.length === 0 && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          zIndex: 200, backgroundColor: '#21262d',
-          border: '1px solid #30363d', borderRadius: '8px',
+          zIndex: 200, backgroundColor: 'var(--raised)',
+          border: '1px solid var(--border)', borderRadius: '8px',
           padding: '14px 16px',
-          color: '#8b949e', fontSize: '13px',
+          color: 'var(--text-2)', fontSize: '13px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}>
           Sin resultados para "{query}"

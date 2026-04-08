@@ -5,12 +5,12 @@ import {
 } from 'recharts';
 import { getPortfolios, deletePortfolio, getTickerInfo, Portfolio, TickerInfo } from '../services/api';
 
-const COLORS = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#79c0ff', '#fb8500', '#ff6b9d'];
+const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
 const CARD = {
-  backgroundColor: '#161b22',
-  border: '1px solid #30363d',
-  borderRadius: '10px',
+  backgroundColor: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
   padding: '24px',
 };
 
@@ -83,7 +83,7 @@ export default function XRayPage() {
 
   if (loading) {
     return (
-      <div style={{ color: '#8b949e', textAlign: 'center', marginTop: '80px', fontSize: '15px' }}>
+      <div style={{ color: 'var(--text-2)', textAlign: 'center', marginTop: '80px', fontSize: '15px' }}>
         Cargando carteras…
       </div>
     );
@@ -92,9 +92,9 @@ export default function XRayPage() {
   if (error) {
     return (
       <div style={{
-        color: '#f85149', textAlign: 'center', marginTop: '80px',
-        fontSize: '14px', padding: '16px', backgroundColor: 'rgba(248,81,73,0.08)',
-        border: '1px solid rgba(248,81,73,0.3)', borderRadius: '8px', maxWidth: '480px', margin: '80px auto 0',
+        color: 'var(--red)', textAlign: 'center', marginTop: '80px',
+        fontSize: '14px', padding: '16px', backgroundColor: 'rgba(232,64,64,0.08)',
+        border: '1px solid rgba(232,64,64,0.3)', borderRadius: '8px', maxWidth: '480px', margin: '80px auto 0',
       }}>
         {error}
       </div>
@@ -103,10 +103,10 @@ export default function XRayPage() {
 
   return (
     <div>
-      <h1 style={{ color: '#e6edf3', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
+      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.3px' }}>
         X-Ray de Carteras
       </h1>
-      <p style={{ color: '#8b949e', fontSize: '13px', margin: '0 0 28px' }}>
+      <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>
         Composición y exposición sectorial de tus carteras ({portfolios.length} cartera{portfolios.length !== 1 ? 's' : ''})
       </p>
 
@@ -117,10 +117,10 @@ export default function XRayPage() {
           textAlign: 'center',
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
-          <div style={{ color: '#e6edf3', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
+          <div style={{ color: 'var(--text)', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
             Sin carteras guardadas
           </div>
-          <div style={{ color: '#8b949e', fontSize: '13px' }}>
+          <div style={{ color: 'var(--text-2)', fontSize: '13px' }}>
             Ve al Optimizador, genera una cartera y guárdala para verla aquí
           </div>
         </div>
@@ -140,18 +140,18 @@ export default function XRayPage() {
                 {/* Card Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <div>
-                    <h2 style={{ color: '#e6edf3', fontSize: '16px', fontWeight: 600, margin: '0 0 4px' }}>
+                    <h2 style={{ color: 'var(--text)', fontSize: '16px', fontWeight: 600, margin: '0 0 4px' }}>
                       {p.nombre_estrategia}
                     </h2>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                       <span style={{
-                        color: '#8b949e', fontSize: '11px',
-                        backgroundColor: '#21262d',
+                        color: 'var(--text-2)', fontSize: '11px',
+                        backgroundColor: 'var(--raised)',
                         padding: '2px 8px', borderRadius: '12px',
                       }}>
                         {p.fecha_creacion}
                       </span>
-                      <span style={{ color: '#8b949e', fontSize: '12px' }}>
+                      <span style={{ color: 'var(--text-2)', fontSize: '12px' }}>
                         {p.activos.length} activo{p.activos.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -162,8 +162,8 @@ export default function XRayPage() {
                       style={{
                         padding: '6px 14px',
                         backgroundColor: 'transparent',
-                        color: '#58a6ff',
-                        border: '1px solid rgba(88, 166, 255, 0.4)',
+                        color: 'var(--accent)',
+                        border: '1px solid rgba(79, 134, 247, 0.4)',
                         borderRadius: '6px',
                         fontSize: '12px', fontWeight: 500,
                         cursor: 'pointer',
@@ -177,8 +177,8 @@ export default function XRayPage() {
                       style={{
                         padding: '6px 14px',
                         backgroundColor: 'transparent',
-                        color: '#f85149',
-                        border: '1px solid rgba(248, 81, 73, 0.4)',
+                        color: 'var(--red)',
+                        border: '1px solid rgba(232, 64, 64, 0.4)',
                         borderRadius: '6px',
                         fontSize: '12px', fontWeight: 500,
                         cursor: deletingId === p.id ? 'not-allowed' : 'pointer',
@@ -194,7 +194,7 @@ export default function XRayPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   {/* PieChart */}
                   <div>
-                    <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
                       DISTRIBUCIÓN DE ACTIVOS
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
@@ -211,13 +211,13 @@ export default function XRayPage() {
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '8px', fontSize: '12px' }}
-                          itemStyle={{ color: '#e6edf3' }}
+                          contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                          itemStyle={{ color: 'var(--text)' }}
                           formatter={(v: any) => [`${(v as number).toFixed(2)}%`, '']}
                         />
                         <Legend
                           formatter={(value) => (
-                            <span style={{ color: '#e6edf3', fontSize: '12px' }}>{value}</span>
+                            <span style={{ color: 'var(--text)', fontSize: '12px' }}>{value}</span>
                           )}
                         />
                       </PieChart>
@@ -226,10 +226,10 @@ export default function XRayPage() {
 
                   {/* Weight List */}
                   <div>
-                    <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
                       PESOS ASIGNADOS
                     </div>
-                    <div style={{ borderTop: '1px solid #21262d', paddingTop: '12px' }}>
+                    <div style={{ borderTop: '1px solid var(--raised)', paddingTop: '12px' }}>
                       {p.activos
                         .slice()
                         .sort((a, b) => b.peso_asignado - a.peso_asignado)
@@ -241,17 +241,17 @@ export default function XRayPage() {
                                 <span style={{ color: COLORS[i % COLORS.length], fontSize: '13px', fontWeight: 700 }}>
                                   {a.ticker}
                                 </span>
-                                <span style={{ color: '#e6edf3', fontSize: '13px', fontWeight: 600 }}>
+                                <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600 }}>
                                   {(a.peso_asignado * 100).toFixed(2)}%
                                 </span>
                               </div>
                               {info && (
-                                <div style={{ color: '#8b949e', fontSize: '11px' }}>
+                                <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>
                                   {info.sector} · {info.pais}
                                 </div>
                               )}
                               {/* Barra de progreso */}
-                              <div style={{ height: '3px', backgroundColor: '#21262d', borderRadius: '2px', marginTop: '4px' }}>
+                              <div style={{ height: '3px', backgroundColor: 'var(--raised)', borderRadius: '2px', marginTop: '4px' }}>
                                 <div style={{
                                   height: '100%',
                                   width: `${a.peso_asignado * 100}%`,
@@ -268,32 +268,32 @@ export default function XRayPage() {
 
                 {/* X-Ray sectorial expandido */}
                 {isExpanded && sectores.length > 0 && (
-                  <div style={{ marginTop: '24px', borderTop: '1px solid #30363d', paddingTop: '20px' }}>
-                    <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '16px' }}>
+                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
                       EXPOSICIÓN SECTORIAL (X-RAY)
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                       <ResponsiveContainer width="100%" height={240}>
                         <BarChart data={sectores} layout="vertical" margin={{ left: 10, right: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#21262d" horizontal={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                           <XAxis
                             type="number"
                             unit="%"
-                            tick={{ fill: '#8b949e', fontSize: 11 }}
-                            stroke="#21262d"
+                            tick={{ fill: 'var(--text-2)', fontSize: 11 }}
+                            stroke="var(--border)"
                           />
                           <YAxis
                             type="category"
                             dataKey="sector"
-                            tick={{ fill: '#e6edf3', fontSize: 11 }}
-                            stroke="#21262d"
+                            tick={{ fill: 'var(--text)', fontSize: 11 }}
+                            stroke="var(--border)"
                             width={110}
                           />
                           <Tooltip
-                            contentStyle={{ backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '8px', fontSize: '12px' }}
+                            contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
                             formatter={(v: any) => [`${v}%`, 'Exposición']}
                           />
-                          <Bar dataKey="peso" fill="#58a6ff" radius={[0, 4, 4, 0]}>
+                          <Bar dataKey="peso" fill="var(--accent)" radius={[0, 4, 4, 0]}>
                             {sectores.map((_, i) => (
                               <Cell key={i} fill={COLORS[i % COLORS.length]} />
                             ))}
@@ -305,9 +305,9 @@ export default function XRayPage() {
                           <div key={s.sector} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                              <span style={{ color: '#e6edf3', fontSize: '13px' }}>{s.sector}</span>
+                              <span style={{ color: 'var(--text)', fontSize: '13px' }}>{s.sector}</span>
                             </div>
-                            <span style={{ color: '#8b949e', fontSize: '13px', fontWeight: 600 }}>{s.peso}%</span>
+                            <span style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600 }}>{s.peso}%</span>
                           </div>
                         ))}
                       </div>
