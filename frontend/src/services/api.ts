@@ -56,6 +56,10 @@ export function deletePortfolio(id: number) {
   return api.delete(`/portfolio/${id}`);
 }
 
+export function updatePortfolio(id: number, nombre: string, pesos: Record<string, number>) {
+  return api.put(`/portfolio/${id}`, { nombre_estrategia: nombre, pesos });
+}
+
 export function runBacktest(tickers: string[], pesos: Record<string, number>, periodo: string) {
   return api.post<BacktestResult>('/backtesting/run', { tickers, pesos, periodo });
 }
