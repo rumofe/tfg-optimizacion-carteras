@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.database import get_db
 from app.db.models import Usuario
-from app.schemas.user import Token, UserRegister
+from app.schemas.user import Token, UserRegister, UserProfileOut, UserProfileUpdate
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,3 +37,25 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Credenciales incorrectas",
         )
     return Token(access_token=create_access_token(str(user.id)))
+
+
+@router.get("/profile", response_model=UserProfileOut)
+def get_profile(current_user: Usuario = Depends(get_current_user)):
+    """Devuelve el perfil de inversor del usuario autenticado."""
+    return current_user
+
+
+@router.put("/profile", response_model=UserProfileOut)
+def update_profile(
+    payload: UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Actualiza capital base y tolerancia al riesgo del usuario autenticado."""
+    if payload.capital_base is not None:
+        current_user.capital_base = payload.capital_base
+    if payload.tolerancia_riesgo is not None:
+        current_user.tolerancia_riesgo = payload.tolerancia_riesgo
+    db.commit()
+    db.refresh(current_user)
+    return current_user

@@ -21,3 +21,16 @@ class UserOut(BaseModel):
     email: EmailStr
 
     model_config = {"from_attributes": True}
+
+
+class UserProfileOut(BaseModel):
+    email: EmailStr
+    capital_base: float | None
+    tolerancia_riesgo: float | None
+
+    model_config = {"from_attributes": True}
+
+
+class UserProfileUpdate(BaseModel):
+    capital_base: float | None = None
+    tolerancia_riesgo: float | None = None
