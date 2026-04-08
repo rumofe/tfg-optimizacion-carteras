@@ -50,6 +50,10 @@ export function getTickerInfo(ticker: string) {
   return api.get<TickerInfo>(`/assets/${ticker}/info`);
 }
 
+export function searchAssets(q: string) {
+  return api.get<SearchResult[]>('/assets/search', { params: { q } });
+}
+
 // --- Types ---
 
 export interface FronteraPunto {
@@ -110,6 +114,13 @@ export interface BacktestResult {
   benchmark_retorno_anualizado: number;
   serie_temporal: { fecha: string; valor_cartera: number; valor_benchmark: number }[];
   crisis: Record<string, CrisisItem>;
+}
+
+export interface SearchResult {
+  ticker: string;
+  nombre: string;
+  tipo: string;
+  exchange: string;
 }
 
 export interface TickerInfo {
