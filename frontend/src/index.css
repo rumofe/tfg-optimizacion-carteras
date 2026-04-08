@@ -23,6 +23,81 @@
   --radius-lg: 14px;
 }
 
+/* ── Tema: Dark (grises clásicos) ── */
+[data-theme="dark"] {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --raised:    #21262d;
+  --border:    #30363d;
+  --border-s:  rgba(255,255,255,0.05);
+  --accent:    #4f86f7;
+  --accent-dim:rgba(79,134,247,0.12);
+  --text:      #e6edf3;
+  --text-2:    #848d97;
+  --text-3:    #484f58;
+}
+
+/* ── Tema: Light ── */
+[data-theme="light"] {
+  --bg:        #f6f8fa;
+  --surface:   #ffffff;
+  --raised:    #eef1f4;
+  --border:    #d0d7de;
+  --border-s:  rgba(0,0,0,0.06);
+  --accent:    #2563eb;
+  --accent-dim:rgba(37,99,235,0.10);
+  --green:     #059669;
+  --amber:     #d97706;
+  --red:       #dc2626;
+  --purple:    #7c3aed;
+  --cyan:      #0891b2;
+  --text:      #1f2328;
+  --text-2:    #656d76;
+  --text-3:    #adbac7;
+}
+
+/* ── Tema: Rose ── */
+[data-theme="rose"] {
+  --bg:        #130810;
+  --surface:   #1c0d17;
+  --raised:    #2a1220;
+  --border:    #3f1b2e;
+  --border-s:  rgba(255,255,255,0.05);
+  --accent:    #f43f5e;
+  --accent-dim:rgba(244,63,94,0.12);
+  --text:      #fde8ef;
+  --text-2:    #a06878;
+  --text-3:    #5e3546;
+}
+
+/* ── Tema: Esmeralda ── */
+[data-theme="emerald"] {
+  --bg:        #07120d;
+  --surface:   #0b1a12;
+  --raised:    #11271a;
+  --border:    #173d27;
+  --border-s:  rgba(255,255,255,0.05);
+  --accent:    #10b981;
+  --accent-dim:rgba(16,185,129,0.12);
+  --text:      #d1fae5;
+  --text-2:    #5a8f74;
+  --text-3:    #2e5440;
+}
+
+/* ── Tema: Ámbar ── */
+[data-theme="amber"] {
+  --bg:        #130e06;
+  --surface:   #1a1509;
+  --raised:    #271f0c;
+  --border:    #3d2f13;
+  --border-s:  rgba(255,255,255,0.05);
+  --accent:    #f59e0b;
+  --accent-dim:rgba(245,158,11,0.12);
+  --text:      #fef3c7;
+  --text-2:    #9d7f40;
+  --text-3:    #5c4b22;
+}
+
 html, body {
   margin: 0;
   padding: 0;
