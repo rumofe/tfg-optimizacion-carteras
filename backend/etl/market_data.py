@@ -20,11 +20,10 @@ class MarketDataConnector:
         Devuelve DataFrame con columnas [fecha, valor_liquidativo].
         Intenta yfinance primero; si falla, Alpha Vantage como fallback.
         """
-        print(f"Intentando yfinance para {ticker}...")
+        logger.info("Descargando precios para %s (periodo %s)...", ticker, period)
         try:
             return self._from_yfinance(ticker, period)
         except Exception as exc:
-            print(f"Error yfinance: {exc}")
             logger.warning("yfinance falló para %s: %s. Probando Alpha Vantage...", ticker, exc)
 
         try:
@@ -32,7 +31,6 @@ class MarketDataConnector:
         except DataSourceError:
             raise
         except Exception as exc:
-            print(f"Error Alpha Vantage: {exc}")
             logger.error("Alpha Vantage también falló para %s: %s", ticker, exc)
 
         raise DataSourceError(

@@ -14,6 +14,7 @@ const CRISIS_LABELS: Record<string, string> = {
 };
 
 function pct(n: number) { return `${n.toFixed(2)}%`; }
+function fmt(n: number, d = 4) { return n.toFixed(d); }
 
 /** Reduce el array a un máximo de maxLen puntos para no sobrecargar el gráfico */
 function downsample<T>(arr: T[], maxLen: number): T[] {
@@ -114,7 +115,7 @@ export default function BacktestPage() {
         Backtesting
       </h1>
       <p style={{ color: '#8b949e', fontSize: '13px', margin: '0 0 28px' }}>
-        Evalúa el rendimiento histórico de tu cartera vs. el índice SPY
+        Evalúa el rendimiento histórico de tu cartera vs. SPY — con análisis de periodos de crisis
       </p>
 
       {/* Form */}
@@ -236,21 +237,41 @@ export default function BacktestPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* Global Metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          {/* Global Metrics — fila 1: rentabilidad y riesgo */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
             {[
               {
                 label: 'Rent. Acumulada',
                 value: pct(result.rentabilidad_acumulada),
                 color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149',
               },
-              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada),   color: '#d29922' },
-              { label: 'Sharpe Ratio',       value: result.sharpe_ratio.toFixed(4),       color: '#58a6ff' },
-              { label: 'Max Drawdown',        value: pct(result.max_drawdown),             color: '#f85149' },
               {
-                label: 'Benchmark (SPY)',
-                value: pct(result.benchmark_rentabilidad),
-                color: result.benchmark_rentabilidad >= 0 ? '#8b949e' : '#f85149',
+                label: 'Ret. Anualizado',
+                value: pct(result.retorno_anualizado),
+                color: result.retorno_anualizado >= 0 ? '#3fb950' : '#f85149',
+              },
+              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada), color: '#d29922' },
+              { label: 'Max Drawdown', value: pct(result.max_drawdown), color: '#f85149' },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
+                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>
+                  {label.toUpperCase()}
+                </div>
+                <div style={{ color, fontSize: '20px', fontWeight: 700 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Fila 2: ratios de riesgo ajustado */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            {[
+              { label: 'Sharpe Ratio', value: fmt(result.sharpe_ratio), color: '#58a6ff' },
+              { label: 'Sortino Ratio', value: fmt(result.sortino_ratio), color: '#bc8cff' },
+              { label: 'Calmar Ratio', value: fmt(result.calmar_ratio), color: '#79c0ff' },
+              {
+                label: 'Beta (vs SPY)',
+                value: result.beta !== null ? fmt(result.beta) : '—',
+                color: '#d29922',
               },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
@@ -262,16 +283,42 @@ export default function BacktestPage() {
             ))}
           </div>
 
+          {/* Benchmark comparison */}
+          <div style={{ ...CARD, marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
+                TU CARTERA
+              </div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? '#3fb950' : '#f85149' }}>
+                {pct(result.rentabilidad_acumulada)}
+              </div>
+              <div style={{ color: '#8b949e', fontSize: '12px', marginTop: '4px' }}>
+                {pct(result.retorno_anualizado)} anualizado · Sharpe {fmt(result.sharpe_ratio)}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
+                BENCHMARK (SPY)
+              </div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? '#3fb950' : '#f85149' }}>
+                {pct(result.benchmark_rentabilidad)}
+              </div>
+              <div style={{ color: '#8b949e', fontSize: '12px', marginTop: '4px' }}>
+                {pct(result.benchmark_retorno_anualizado)} anualizado
+              </div>
+            </div>
+          </div>
+
           {/* Crisis Analysis */}
           <div style={CARD}>
             <h3 style={{ color: '#e6edf3', fontSize: '14px', fontWeight: 600, margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Análisis de periodos de crisis
             </h3>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
                 <thead>
                   <tr>
-                    {['Periodo', 'Intervalo', 'Rent. Cartera', 'Rent. Benchmark', 'Sharpe Cart.', 'MaxDD Cart.', 'Vol. Cart.'].map((h) => (
+                    {['Periodo', 'Intervalo', 'Rent. Cartera', 'Rent. Benchmark', 'Sharpe', 'Sortino', 'MaxDD Cart.', 'Beta'].map((h) => (
                       <th key={h} style={{
                         color: '#8b949e', fontSize: '11px', fontWeight: 500,
                         textAlign: 'left', padding: '0 12px 10px 0',
@@ -308,17 +355,20 @@ export default function BacktestPage() {
                             {pct(data.benchmark?.rentabilidad_acumulada ?? 0)}
                           </td>
                           <td style={{ color: '#58a6ff', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
-                            {(data.cartera?.sharpe_ratio ?? 0).toFixed(4)}
+                            {fmt(data.cartera?.sharpe_ratio ?? 0)}
+                          </td>
+                          <td style={{ color: '#bc8cff', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
+                            {fmt(data.cartera?.sortino_ratio ?? 0)}
                           </td>
                           <td style={{ color: '#f85149', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
                             {pct(data.cartera?.max_drawdown ?? 0)}
                           </td>
                           <td style={{ color: '#d29922', padding: '13px 0 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
-                            {pct(data.cartera?.volatilidad_anualizada ?? 0)}
+                            {data.cartera?.beta !== null && data.cartera?.beta !== undefined ? fmt(data.cartera.beta) : '—'}
                           </td>
                         </>
                       ) : (
-                        <td colSpan={6} style={{
+                        <td colSpan={7} style={{
                           color: '#8b949e', padding: '13px 0', borderBottom: '1px solid #21262d',
                           fontSize: '12px', fontStyle: 'italic',
                         }}>
