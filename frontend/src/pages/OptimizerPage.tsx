@@ -144,10 +144,11 @@ export default function OptimizerPage() {
             value={capital}
             onChange={setCapital}
             min={500} max={500000} step={50}
+            scale="log"
             prefix="€"
             formatDisplay={(v) => v.toLocaleString('es-ES')}
-            formatMin="500"
-            formatMax="500 K"
+            formatMin="€ 500"
+            formatMax="€ 500 K"
           />
           <SliderInput
             label="Volatilidad máxima"
