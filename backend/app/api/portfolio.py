@@ -28,6 +28,11 @@ class GuardarCarteraRequest(BaseModel):
     capital: float
 
 
+class ActualizarCarteraRequest(BaseModel):
+    nombre_estrategia: str
+    pesos: dict[str, float]   # ticker → peso (deben sumar ~1.0)
+
+
 # --- Endpoints ---
 
 @router.post("/optimize")
@@ -121,6 +126,45 @@ def listar_carteras(
         }
         for c in carteras
     ]
+
+
+@router.put("/{cartera_id}")
+def actualizar_cartera(
+    cartera_id: int,
+    payload: ActualizarCarteraRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """
+    Actualiza el nombre y los pesos de una cartera del usuario autenticado.
+    Reemplaza todos los activos existentes por los nuevos.
+    """
+    cartera = (
+        db.query(Cartera)
+        .filter(Cartera.id == cartera_id, Cartera.usuario_id == current_user.id)
+        .first()
+    )
+    if not cartera:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cartera no encontrada")
+
+    if len(payload.pesos) < 1:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="La cartera debe tener al menos 1 activo")
+
+    cartera.nombre_estrategia = payload.nombre_estrategia
+
+    # Reemplazar activos
+    db.query(ActivoCartera).filter(ActivoCartera.cartera_id == cartera_id).delete()
+    for ticker, peso in payload.pesos.items():
+        ticker_upper = ticker.upper()
+        activo = db.query(Activo).filter(Activo.isin_ticker == ticker_upper).first()
+        if not activo:
+            activo = Activo(isin_ticker=ticker_upper, nombre_fondo=ticker_upper)
+            db.add(activo)
+            db.flush()
+        db.add(ActivoCartera(cartera_id=cartera.id, activo_id=activo.id, peso_asignado=peso))
+
+    db.commit()
+    return {"id": cartera.id, "mensaje": "Cartera actualizada correctamente"}
 
 
 @router.delete("/{cartera_id}", status_code=status.HTTP_204_NO_CONTENT)

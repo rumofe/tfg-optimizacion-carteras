@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { getPortfolios, deletePortfolio, getTickerInfo, Portfolio, TickerInfo } from '../services/api';
+import EditPortfolioModal from '../components/EditPortfolioModal';
 
 const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
@@ -46,6 +47,7 @@ export default function XRayPage() {
   const [tickerInfos, setTickerInfos] = useState<Record<string, TickerInfo>>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
 
   async function cargarCarteras() {
     setLoading(true);
@@ -179,6 +181,20 @@ export default function XRayPage() {
                       }}
                     >
                       {isExpanded ? 'Ocultar X-Ray' : 'Ver X-Ray'}
+                    </button>
+                    <button
+                      onClick={() => setEditingPortfolio(p)}
+                      style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'transparent',
+                        color: 'var(--amber)',
+                        border: '1px solid rgba(240, 160, 32, 0.4)',
+                        borderRadius: '6px',
+                        fontSize: '12px', fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Editar
                     </button>
                     <button
                       onClick={() => handleDelete(p.id, p.nombre_estrategia)}
@@ -357,6 +373,18 @@ export default function XRayPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Modal de edición */}
+      {editingPortfolio && (
+        <EditPortfolioModal
+          portfolio={editingPortfolio}
+          onClose={() => setEditingPortfolio(null)}
+          onSaved={(updated) => {
+            setPortfolios((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+            setEditingPortfolio(null);
+          }}
+        />
       )}
     </div>
   );
