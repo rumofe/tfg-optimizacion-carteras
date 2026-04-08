@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
+import SliderInput from '../components/SliderInput';
 
 const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
@@ -137,17 +138,27 @@ export default function OptimizerPage() {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-          <div>
-            <label style={LABEL}>Capital (€)</label>
-            <input type="number" value={capital} min={100} required style={INPUT}
-              onChange={(e) => setCapital(Number(e.target.value))} />
-          </div>
-          <div>
-            <label style={LABEL}>Volatilidad máxima (%)</label>
-            <input type="number" value={maxVol} min={1} max={100} step={0.5} required style={INPUT}
-              onChange={(e) => setMaxVol(Number(e.target.value))} />
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px', marginBottom: '24px' }}>
+          <SliderInput
+            label="Capital inicial"
+            value={capital}
+            onChange={setCapital}
+            min={500} max={500000} step={50}
+            prefix="€"
+            formatDisplay={(v) => v.toLocaleString('es-ES')}
+            formatMin="500"
+            formatMax="500 K"
+          />
+          <SliderInput
+            label="Volatilidad máxima"
+            value={maxVol}
+            onChange={setMaxVol}
+            min={1} max={50} step={0.5}
+            suffix="%"
+            formatDisplay={(v) => v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}
+            formatMin="1%"
+            formatMax="50%"
+          />
         </div>
 
         {error && (
