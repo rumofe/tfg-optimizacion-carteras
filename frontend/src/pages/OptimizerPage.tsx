@@ -1,6 +1,7 @@
 import { useState, CSSProperties } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
 } from 'recharts';
 import { optimizePortfolio, savePortfolio, OptimizeResult } from '../services/api';
 
@@ -35,6 +36,25 @@ const CARD: CSSProperties = {
   borderRadius: '10px',
   padding: '24px',
 };
+
+// Tooltip personalizado para el gráfico de frontera eficiente
+function FronteraTooltip({ active, payload }: any) {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div style={{
+      backgroundColor: '#21262d', border: '1px solid #30363d',
+      borderRadius: '8px', padding: '10px 14px', fontSize: '12px',
+    }}>
+      <div style={{ color: '#8b949e', marginBottom: '4px' }}>Frontera Eficiente</div>
+      <div style={{ color: '#58a6ff' }}>Volatilidad: <strong>{d.volatilidad?.toFixed(2)}%</strong></div>
+      <div style={{ color: '#3fb950' }}>Retorno: <strong>{d.retorno?.toFixed(2)}%</strong></div>
+      <div style={{ color: '#d29922' }}>Sharpe: <strong>{d.sharpe?.toFixed(4)}</strong></div>
+    </div>
+  );
+}
+
 
 export default function OptimizerPage() {
   const [tickersInput, setTickersInput] = useState('');
@@ -110,13 +130,28 @@ export default function OptimizerPage() {
     ? Object.entries(result.pesos).sort(([, a], [, b]) => b - a)
     : [];
 
+  // Datos para la frontera eficiente
+  const fronteraData = result?.frontera ?? [];
+  const optimalPoint = result
+    ? { volatilidad: result.volatilidad * 100, retorno: result.retorno_esperado * 100, sharpe: result.sharpe_ratio }
+    : null;
+
+  // Activos individuales para el scatter
+  const activosScatter = result
+    ? Object.entries(result.activos_info).map(([ticker, info]) => ({
+        ticker,
+        volatilidad: info.volatilidad_anualizada,
+        retorno: info.retorno_anualizado,
+      }))
+    : [];
+
   return (
     <div>
       <h1 style={{ color: '#e6edf3', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
         Optimizador de Carteras
       </h1>
       <p style={{ color: '#8b949e', fontSize: '13px', margin: '0 0 28px' }}>
-        Maximiza el ratio Sharpe bajo tu restricción de volatilidad máxima
+        Maximiza el ratio Sharpe bajo tu restricción de volatilidad — incluye Frontera Eficiente de Markowitz
       </p>
 
       {/* Form */}
@@ -273,6 +308,82 @@ export default function OptimizerPage() {
               </table>
             </div>
           </div>
+
+          {/* Frontera Eficiente */}
+          {fronteraData.length > 0 && (
+            <div style={{ ...CARD, marginBottom: '24px' }}>
+              <h3 style={{ color: '#e6edf3', fontSize: '14px', fontWeight: 600, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Frontera Eficiente de Markowitz
+              </h3>
+              <p style={{ color: '#8b949e', fontSize: '12px', margin: '0 0 20px' }}>
+                Cada punto es un portfolio óptimo para un nivel de retorno. La estrella marca el portfolio de máximo Sharpe seleccionado.
+              </p>
+              <ResponsiveContainer width="100%" height={340}>
+                <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                  <XAxis
+                    dataKey="volatilidad"
+                    type="number"
+                    name="Volatilidad"
+                    unit="%"
+                    stroke="#21262d"
+                    tick={{ fill: '#8b949e', fontSize: 11 }}
+                    label={{ value: 'Volatilidad (%)', position: 'insideBottom', offset: -10, fill: '#8b949e', fontSize: 11 }}
+                    domain={['auto', 'auto']}
+                  />
+                  <YAxis
+                    dataKey="retorno"
+                    type="number"
+                    name="Retorno"
+                    unit="%"
+                    stroke="#21262d"
+                    tick={{ fill: '#8b949e', fontSize: 11 }}
+                    label={{ value: 'Retorno (%)', angle: -90, position: 'insideLeft', fill: '#8b949e', fontSize: 11 }}
+                    domain={['auto', 'auto']}
+                    width={60}
+                  />
+                  <ZAxis range={[30, 30]} />
+                  <Tooltip content={<FronteraTooltip />} />
+
+                  {/* Frontera eficiente */}
+                  <Scatter
+                    name="Frontera Eficiente"
+                    data={fronteraData}
+                    fill="#58a6ff"
+                    opacity={0.7}
+                    line={{ stroke: '#58a6ff', strokeWidth: 2 }}
+                    lineType="joint"
+                  />
+
+                  {/* Activos individuales */}
+                  <Scatter
+                    name="Activos individuales"
+                    data={activosScatter}
+                    fill="#d29922"
+                    opacity={0.9}
+                  />
+
+                  {/* Portfolio óptimo */}
+                  {optimalPoint && (
+                    <ReferenceDot
+                      x={optimalPoint.volatilidad}
+                      y={optimalPoint.retorno}
+                      r={10}
+                      fill="#f85149"
+                      stroke="#fff"
+                      strokeWidth={2}
+                      label={{ value: '★ Óptimo', fill: '#f85149', fontSize: 11, dy: -16 }}
+                    />
+                  )}
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', color: '#58a6ff' }}>● Frontera Eficiente</span>
+                <span style={{ fontSize: '12px', color: '#d29922' }}>● Activos individuales</span>
+                <span style={{ fontSize: '12px', color: '#f85149' }}>★ Portfolio óptimo (max Sharpe)</span>
+              </div>
+            </div>
+          )}
 
           {/* Save Portfolio */}
           {saveMsg && (

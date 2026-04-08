@@ -31,8 +31,9 @@ class BacktestRequest(BaseModel):
 @router.post("/run")
 def run_backtest(payload: BacktestRequest):
     """
-    Ejecuta el backtest con pesos fijos para los tickers dados y devuelve
-    métricas globales + análisis por periodos de crisis.
+    Ejecuta el backtest con pesos fijos para los tickers dados y devuelve:
+    - Métricas globales: rentabilidad, volatilidad, Sharpe, Sortino, Calmar, Beta, Max Drawdown
+    - Análisis por periodos de crisis históricos (COVID, Lehman, Corrección 2022)
     """
     try:
         engine = BacktestEngine(

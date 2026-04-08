@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: 'optimizer', label: 'Optimizador',  icon: '◎' },
-  { to: 'xray',      label: 'X-Ray',        icon: '⬡' },
-  { to: 'backtest',  label: 'Backtesting',  icon: '↗' },
+  { to: 'optimizer', label: 'Optimizador',  icon: '◈' },
+  { to: 'xray',      label: 'X-Ray',        icon: '◉' },
+  { to: 'backtest',  label: 'Backtesting',  icon: '▲' },
 ];
 
 export default function DashboardPage() {
@@ -38,10 +38,10 @@ export default function DashboardPage() {
         {/* Logo */}
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid #30363d' }}>
           <div style={{ color: '#58a6ff', fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>
-            📊 Carteras TFG
+            PortfolioLab
           </div>
           <div style={{ color: '#8b949e', fontSize: '12px' }}>
-            Optimización Markowitz
+            Optimización Markowitz · UMA
           </div>
         </div>
 

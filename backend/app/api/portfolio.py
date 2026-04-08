@@ -56,7 +56,8 @@ class GuardarCarteraRequest(BaseModel):
 @router.post("/optimize")
 def optimize_portfolio(payload: OptimizeRequest):
     """
-    Calcula la cartera óptima (máximo Sharpe Ratio) para los tickers dados.
+    Calcula la cartera óptima (máximo Sharpe Ratio) para los tickers dados
+    e incluye la Frontera Eficiente de Markowitz completa.
     No requiere autenticación.
     """
     if len(payload.tickers) < 2:
@@ -143,3 +144,27 @@ def listar_carteras(
         }
         for c in carteras
     ]
+
+
+@router.delete("/{cartera_id}", status_code=status.HTTP_204_NO_CONTENT)
+def eliminar_cartera(
+    cartera_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """
+    Elimina una cartera del usuario autenticado (y sus activos asociados).
+    """
+    cartera = (
+        db.query(Cartera)
+        .filter(Cartera.id == cartera_id, Cartera.usuario_id == current_user.id)
+        .first()
+    )
+    if not cartera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cartera no encontrada",
+        )
+    db.query(ActivoCartera).filter(ActivoCartera.cartera_id == cartera_id).delete()
+    db.delete(cartera)
+    db.commit()
