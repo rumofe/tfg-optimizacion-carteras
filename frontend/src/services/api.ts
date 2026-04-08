@@ -8,6 +8,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Si el servidor devuelve 401, el token expiró → volver al login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  },
+);
+
 export function login(email: string, password: string) {
   const body = new URLSearchParams({ username: email, password });
   return api.post<{ access_token: string }>('/auth/login', body);
