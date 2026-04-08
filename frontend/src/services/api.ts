@@ -8,11 +8,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Si el servidor devuelve 401, el token expiró → volver al login
+// Si el servidor devuelve 401 fuera de auth, el token expiró → volver al login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url: string = error.config?.url ?? '';
+    const isAuthEndpoint = url.includes('/auth/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('token');
       window.location.href = '/';
     }
