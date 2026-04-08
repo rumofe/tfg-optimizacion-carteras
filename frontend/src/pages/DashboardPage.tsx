@@ -9,6 +9,10 @@ const NAV_ITEMS = [
   { to: 'backtest',  label: 'Backtesting',  icon: '↗', desc: 'Simulación histórica' },
 ];
 
+const BOTTOM_NAV = [
+  { to: 'profile', label: 'Mi Perfil', icon: '◉' },
+];
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -107,9 +111,29 @@ export default function DashboardPage() {
         </nav>
 
         {/* Footer sidebar */}
-        <div style={{
-          borderTop: '1px solid var(--border)',
-        }}>
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Perfil */}
+          <nav style={{ padding: '8px 10px 0' }}>
+            {BOTTOM_NAV.map(({ to, label, icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: '11px',
+                  padding: '9px 12px', borderRadius: 'var(--radius-sm)',
+                  textDecoration: 'none',
+                  color: isActive ? 'var(--text)' : 'var(--text-2)',
+                  backgroundColor: isActive ? 'var(--raised)' : 'transparent',
+                  borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                  fontSize: '13.5px', fontWeight: isActive ? 600 : 400,
+                  marginBottom: '2px', transition: 'all 0.15s',
+                })}
+              >
+                <span style={{ fontSize: '14px', opacity: 0.85, minWidth: '16px', textAlign: 'center' }}>{icon}</span>
+                {label}
+              </NavLink>
+            ))}
+          </nav>
           <ThemeSelector current={theme} onChange={setTheme} />
           <div style={{ padding: '0 10px 14px' }}>
           <button

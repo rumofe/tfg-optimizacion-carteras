@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import OptimizerPage from './pages/OptimizerPage';
 import XRayPage from './pages/XRayPage';
 import BacktestPage from './pages/BacktestPage';
+import ProfilePage from './pages/ProfilePage';
 
 const router = createBrowserRouter([
   { path: '/', element: <LoginPage /> },
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
       { path: 'optimizer', element: <OptimizerPage /> },
       { path: 'xray',      element: <XRayPage /> },
       { path: 'backtest',  element: <BacktestPage /> },
+      { path: 'profile',   element: <ProfilePage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

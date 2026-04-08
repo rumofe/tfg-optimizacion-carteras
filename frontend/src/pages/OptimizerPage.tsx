@@ -1,9 +1,9 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
 } from 'recharts';
-import { optimizePortfolio, savePortfolio, OptimizeResult } from '../services/api';
+import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
 
 const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
@@ -51,6 +51,14 @@ export default function OptimizerPage() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [capital, setCapital] = useState(10000);
   const [maxVol, setMaxVol] = useState(20);
+
+  // Pre-rellenar capital y volatilidad máxima desde el perfil del inversor
+  useEffect(() => {
+    getProfile().then(({ data }) => {
+      if (data.capital_base)      setCapital(data.capital_base);
+      if (data.tolerancia_riesgo) setMaxVol(data.tolerancia_riesgo);
+    }).catch(() => { /* perfil no disponible, usar defaults */ });
+  }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OptimizeResult | null>(null);

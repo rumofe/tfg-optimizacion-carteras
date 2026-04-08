@@ -68,6 +68,14 @@ export function searchAssets(q: string) {
   return api.get<SearchResult[]>('/assets/search', { params: { q } });
 }
 
+export function getProfile() {
+  return api.get<UserProfile>('/auth/profile');
+}
+
+export function updateProfile(data: { capital_base?: number | null; tolerancia_riesgo?: number | null }) {
+  return api.put<UserProfile>('/auth/profile', data);
+}
+
 // --- Types ---
 
 export interface FronteraPunto {
@@ -135,6 +143,12 @@ export interface SearchResult {
   nombre: string;
   tipo: string;
   exchange: string;
+}
+
+export interface UserProfile {
+  email: string;
+  capital_base: number | null;
+  tolerancia_riesgo: number | null;
 }
 
 export interface TickerInfo {
