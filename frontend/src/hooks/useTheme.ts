@@ -2,13 +2,13 @@ import { useState } from 'react';
 
 export type Theme = 'navy' | 'dark' | 'light' | 'rose' | 'emerald' | 'amber';
 
-export const THEMES: { id: Theme; label: string; color: string; dark: boolean }[] = [
-  { id: 'navy',    label: 'Navy',    color: '#4f86f7', dark: true  },
-  { id: 'dark',    label: 'Dark',    color: '#848d97', dark: true  },
-  { id: 'light',   label: 'Light',   color: '#2563eb', dark: false },
-  { id: 'rose',    label: 'Rose',    color: '#f43f5e', dark: true  },
-  { id: 'emerald', label: 'Esmeralda', color: '#10b981', dark: true },
-  { id: 'amber',   label: 'Ámbar',   color: '#f59e0b', dark: true  },
+export const THEMES: { id: Theme; label: string; bg: string; accent: string }[] = [
+  { id: 'navy',    label: 'Navy',       bg: '#0c1929', accent: '#4f86f7' },
+  { id: 'dark',    label: 'Dark',       bg: '#161b22', accent: '#848d97' },
+  { id: 'light',   label: 'Light',      bg: '#ffffff', accent: '#2563eb' },
+  { id: 'rose',    label: 'Rose',       bg: '#1c0d17', accent: '#f43f5e' },
+  { id: 'emerald', label: 'Esmeralda',  bg: '#0b1a12', accent: '#10b981' },
+  { id: 'amber',   label: 'Ámbar',      bg: '#1a1509', accent: '#f59e0b' },
 ];
 
 function applyTheme(theme: Theme) {

@@ -25,17 +25,18 @@ export default function ThemeSelector({ current, onChange }: Props) {
               style={{
                 width: '24px', height: '24px',
                 borderRadius: '50%',
-                backgroundColor: t.color,
+                /* Mitad superior-izquierda = fondo del tema, mitad inferior-derecha = acento */
+                background: `linear-gradient(135deg, ${t.bg} 50%, ${t.accent} 50%)`,
                 border: active
                   ? `2px solid var(--text)`
-                  : '2px solid transparent',
-                outline: active ? `2px solid ${t.color}` : 'none',
+                  : `2px solid var(--border)`,
+                outline: active ? `2px solid ${t.accent}` : 'none',
                 outlineOffset: '1px',
                 cursor: 'pointer',
                 padding: 0,
                 flexShrink: 0,
-                transition: 'transform 0.12s, outline 0.12s',
-                transform: active ? 'scale(1.15)' : 'scale(1)',
+                transition: 'transform 0.12s',
+                transform: active ? 'scale(1.2)' : 'scale(1)',
               }}
               aria-label={`Tema ${t.label}`}
             />
