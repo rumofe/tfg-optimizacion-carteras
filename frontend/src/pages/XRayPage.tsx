@@ -14,20 +14,28 @@ const CARD = {
   padding: '24px',
 };
 
-interface SectorData {
-  sector: string;
-  peso: number;
-}
+interface SectorData { sector: string; peso: number; }
+interface PaisData   { pais:   string; peso: number; }
 
 function calcularSectores(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): SectorData[] {
   const mapa: Record<string, number> = {};
   for (const a of activos) {
-    const info = infos[a.ticker];
-    const sector = info?.sector ?? 'Desconocido';
+    const sector = infos[a.ticker]?.sector ?? 'Desconocido';
     mapa[sector] = (mapa[sector] ?? 0) + a.peso_asignado * 100;
   }
   return Object.entries(mapa)
     .map(([sector, peso]) => ({ sector, peso: parseFloat(peso.toFixed(2)) }))
+    .sort((a, b) => b.peso - a.peso);
+}
+
+function calcularPaises(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): PaisData[] {
+  const mapa: Record<string, number> = {};
+  for (const a of activos) {
+    const pais = infos[a.ticker]?.pais ?? 'Desconocido';
+    mapa[pais] = (mapa[pais] ?? 0) + a.peso_asignado * 100;
+  }
+  return Object.entries(mapa)
+    .map(([pais, peso]) => ({ pais, peso: parseFloat(peso.toFixed(2)) }))
     .sort((a, b) => b.peso - a.peso);
 }
 
@@ -133,6 +141,7 @@ export default function XRayPage() {
             }));
 
             const sectores = calcularSectores(p.activos, tickerInfos);
+            const paises   = calcularPaises(p.activos, tickerInfos);
             const isExpanded = expandedId === p.id;
 
             return (
@@ -169,7 +178,7 @@ export default function XRayPage() {
                         cursor: 'pointer',
                       }}
                     >
-                      {isExpanded ? 'Ocultar detalle' : 'Ver X-Ray sectorial'}
+                      {isExpanded ? 'Ocultar X-Ray' : 'Ver X-Ray'}
                     </button>
                     <button
                       onClick={() => handleDelete(p.id, p.nombre_estrategia)}
@@ -266,52 +275,82 @@ export default function XRayPage() {
                   </div>
                 </div>
 
-                {/* X-Ray sectorial expandido */}
-                {isExpanded && sectores.length > 0 && (
-                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
-                      EXPOSICIÓN SECTORIAL (X-RAY)
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                      <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={sectores} layout="vertical" margin={{ left: 10, right: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                          <XAxis
-                            type="number"
-                            unit="%"
-                            tick={{ fill: 'var(--text-2)', fontSize: 11 }}
-                            stroke="var(--border)"
-                          />
-                          <YAxis
-                            type="category"
-                            dataKey="sector"
-                            tick={{ fill: 'var(--text)', fontSize: 11 }}
-                            stroke="var(--border)"
-                            width={110}
-                          />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(v: any) => [`${v}%`, 'Exposición']}
-                          />
-                          <Bar dataKey="peso" fill="var(--accent)" radius={[0, 4, 4, 0]}>
-                            {sectores.map((_, i) => (
-                              <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                {/* X-Ray expandido: sectorial + geográfico */}
+                {isExpanded && (
+                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+                    {/* ── Sectorial ── */}
+                    {sectores.length > 0 && (
                       <div>
-                        {sectores.map((s, i) => (
-                          <div key={s.sector} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                              <span style={{ color: 'var(--text)', fontSize: '13px' }}>{s.sector}</span>
-                            </div>
-                            <span style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600 }}>{s.peso}%</span>
+                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+                          Exposición sectorial
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+                          <ResponsiveContainer width="100%" height={Math.max(160, sectores.length * 34)}>
+                            <BarChart data={sectores} layout="vertical" margin={{ left: 10, right: 20, top: 4, bottom: 4 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                              <XAxis type="number" unit="%" tick={{ fill: 'var(--text-2)', fontSize: 11 }} stroke="var(--border)" />
+                              <YAxis type="category" dataKey="sector" tick={{ fill: 'var(--text)', fontSize: 11 }} stroke="var(--border)" width={115} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                                formatter={(v: any) => [`${v}%`, 'Exposición']}
+                              />
+                              <Bar dataKey="peso" radius={[0, 4, 4, 0]}>
+                                {sectores.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                          <div style={{ paddingTop: '4px' }}>
+                            {sectores.map((s, i) => (
+                              <div key={s.sector} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                                  <span style={{ color: 'var(--text)', fontSize: '13px' }}>{s.sector}</span>
+                                </div>
+                                <span style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600 }}>{s.peso}%</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* ── Geográfico ── */}
+                    {paises.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+                          Exposición geográfica
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
+                          <ResponsiveContainer width="100%" height={Math.max(160, paises.length * 34)}>
+                            <BarChart data={paises} layout="vertical" margin={{ left: 10, right: 20, top: 4, bottom: 4 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                              <XAxis type="number" unit="%" tick={{ fill: 'var(--text-2)', fontSize: 11 }} stroke="var(--border)" />
+                              <YAxis type="category" dataKey="pais" tick={{ fill: 'var(--text)', fontSize: 11 }} stroke="var(--border)" width={115} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                                formatter={(v: any) => [`${v}%`, 'Exposición']}
+                              />
+                              <Bar dataKey="peso" radius={[0, 4, 4, 0]}>
+                                {paises.map((_, i) => <Cell key={i} fill={COLORS[(i + 3) % COLORS.length]} />)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                          <div style={{ paddingTop: '4px' }}>
+                            {paises.map((p2, i) => (
+                              <div key={p2.pais} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: COLORS[(i + 3) % COLORS.length], flexShrink: 0 }} />
+                                  <span style={{ color: 'var(--text)', fontSize: '13px' }}>{p2.pais}</span>
+                                </div>
+                                <span style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600 }}>{p2.peso}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 )}
               </div>
