@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTheme } from '../hooks/useTheme';
+import ThemeSelector from '../components/ThemeSelector';
 
 const NAV_ITEMS = [
   { to: 'optimizer', label: 'Optimizador',  icon: '⬡', desc: 'Markowitz & Frontera Eficiente' },
@@ -9,6 +11,7 @@ const NAV_ITEMS = [
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (!localStorage.getItem('token')) navigate('/', { replace: true });
@@ -105,9 +108,10 @@ export default function DashboardPage() {
 
         {/* Footer sidebar */}
         <div style={{
-          padding: '14px 10px 16px',
           borderTop: '1px solid var(--border)',
         }}>
+          <ThemeSelector current={theme} onChange={setTheme} />
+          <div style={{ padding: '0 10px 14px' }}>
           <button
             onClick={handleLogout}
             style={{
@@ -140,6 +144,7 @@ export default function DashboardPage() {
             <span style={{ fontSize: '13px' }}>⎋</span>
             Cerrar sesión
           </button>
+          </div>
         </div>
       </aside>
 
