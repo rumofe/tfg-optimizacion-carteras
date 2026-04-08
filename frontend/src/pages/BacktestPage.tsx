@@ -1,9 +1,9 @@
-import { useState, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { runBacktest, BacktestResult } from '../services/api';
+import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../services/api';
 
 const PERIODS = ['1y', '2y', '3y', '5y', '10y'];
 
@@ -16,7 +16,6 @@ const CRISIS_LABELS: Record<string, string> = {
 function pct(n: number) { return `${n.toFixed(2)}%`; }
 function fmt(n: number, d = 4) { return n.toFixed(d); }
 
-/** Reduce el array a un máximo de maxLen puntos para no sobrecargar el gráfico */
 function downsample<T>(arr: T[], maxLen: number): T[] {
   if (arr.length <= maxLen) return arr;
   const step = Math.ceil(arr.length / maxLen);
@@ -51,44 +50,75 @@ const CARD: CSSProperties = {
   padding: '24px',
 };
 
+type Modo = 'guardada' | 'manual';
+
 export default function BacktestPage() {
+  const [modo, setModo] = useState<Modo>('guardada');
+
+  // Carteras guardadas
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [selectedId, setSelectedId] = useState<number | ''>('');
+
+  // Entradas manuales
   const [tickersInput, setTickersInput] = useState('');
   const [weightsInput, setWeightsInput] = useState('');
+
   const [period, setPeriod] = useState('5y');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<BacktestResult | null>(null);
 
+  // Cargar carteras guardadas al montar
+  useEffect(() => {
+    getPortfolios()
+      .then(({ data }) => setPortfolios(data))
+      .catch(() => { /* silencioso: puede que no esté logado */ });
+  }, []);
+
+  // Cartera seleccionada del dropdown
+  const selectedPortfolio = portfolios.find((p) => p.id === selectedId) ?? null;
+
+  function cargarCarteraEnForm(p: Portfolio) {
+    const sorted = [...p.activos].sort((a, b) => b.peso_asignado - a.peso_asignado);
+    setTickersInput(sorted.map((a) => a.ticker).join(', '));
+    // Mostrar pesos como porcentaje redondeado (se normalizan al enviar)
+    setWeightsInput(sorted.map((a) => (a.peso_asignado * 100).toFixed(2)).join(', '));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const tickers = tickersInput
-      .split(',')
-      .map((t) => t.trim().toUpperCase())
-      .filter(Boolean);
+    let tickers: string[];
+    let rawWeights: number[];
 
-    const rawWeights = weightsInput
-      .split(',')
-      .map((w) => parseFloat(w.trim()))
-      .filter((n) => !isNaN(n));
+    if (modo === 'guardada') {
+      if (!selectedPortfolio) {
+        setError('Selecciona una cartera guardada.');
+        return;
+      }
+      const sorted = [...selectedPortfolio.activos].sort((a, b) => b.peso_asignado - a.peso_asignado);
+      tickers = sorted.map((a) => a.ticker);
+      rawWeights = sorted.map((a) => a.peso_asignado);
+    } else {
+      tickers = tickersInput
+        .split(',')
+        .map((t) => t.trim().toUpperCase())
+        .filter(Boolean);
+      rawWeights = weightsInput
+        .split(',')
+        .map((w) => parseFloat(w.trim()))
+        .filter((n) => !isNaN(n));
 
-    if (tickers.length === 0) {
-      setError('Introduce al menos un ticker.');
-      return;
+      if (tickers.length === 0) { setError('Introduce al menos un ticker.'); return; }
+      if (rawWeights.length !== tickers.length) {
+        setError(`El número de pesos (${rawWeights.length}) no coincide con el de tickers (${tickers.length}).`);
+        return;
+      }
     }
-    if (rawWeights.length !== tickers.length) {
-      setError(
-        `El número de pesos (${rawWeights.length}) no coincide con el número de tickers (${tickers.length}).`,
-      );
-      return;
-    }
+
     const total = rawWeights.reduce((a, b) => a + b, 0);
-    if (total <= 0) {
-      setError('Los pesos deben ser positivos.');
-      return;
-    }
+    if (total <= 0) { setError('Los pesos deben ser positivos.'); return; }
 
-    // Normalizar a suma = 1
     const pesos: Record<string, number> = {};
     tickers.forEach((t, i) => { pesos[t] = rawWeights[i] / total; });
 
@@ -120,43 +150,163 @@ export default function BacktestPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} style={{ ...CARD, marginBottom: '28px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr', gap: '16px', marginBottom: '6px' }}>
-          <div>
-            <label style={LABEL}>TICKERS</label>
-            <input
-              value={tickersInput}
-              onChange={(e) => setTickersInput(e.target.value)}
-              placeholder="AAPL, MSFT, GOOG"
-              required
-              style={INPUT}
-            />
-          </div>
-          <div>
-            <label style={LABEL}>PESOS (mismo orden — se normalizan automáticamente)</label>
-            <input
-              value={weightsInput}
-              onChange={(e) => setWeightsInput(e.target.value)}
-              placeholder="40, 35, 25"
-              required
-              style={INPUT}
-            />
-          </div>
-          <div>
-            <label style={LABEL}>PERIODO</label>
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              style={{ ...INPUT, cursor: 'pointer' }}
+
+        {/* Toggle de modo */}
+        <div style={{
+          display: 'flex',
+          backgroundColor: '#0d1117',
+          borderRadius: '8px',
+          padding: '4px',
+          marginBottom: '20px',
+          width: 'fit-content',
+        }}>
+          {(['guardada', 'manual'] as Modo[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setModo(m); setError(''); setResult(null); }}
+              style={{
+                padding: '7px 18px',
+                backgroundColor: modo === m ? '#21262d' : 'transparent',
+                color: modo === m ? '#e6edf3' : '#8b949e',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: modo === m ? 600 : 400,
+                transition: 'all 0.15s',
+              }}
             >
-              {PERIODS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+              {m === 'guardada' ? 'Cartera guardada' : 'Entrada manual'}
+            </button>
+          ))}
+        </div>
+
+        {/* Modo: cartera guardada */}
+        {modo === 'guardada' && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={LABEL}>SELECCIONA UNA CARTERA</label>
+            {portfolios.length === 0 ? (
+              <div style={{
+                padding: '14px 16px',
+                backgroundColor: '#0d1117',
+                border: '1px solid #30363d',
+                borderRadius: '6px',
+                color: '#8b949e',
+                fontSize: '13px',
+              }}>
+                No tienes carteras guardadas. Ve al Optimizador y guarda una primero.
+              </div>
+            ) : (
+              <>
+                <select
+                  value={selectedId}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setSelectedId(id || '');
+                    const p = portfolios.find((p) => p.id === id);
+                    if (p) cargarCarteraEnForm(p);
+                    setResult(null);
+                    setError('');
+                  }}
+                  style={{ ...INPUT, cursor: 'pointer' }}
+                >
+                  <option value="">— Elige una cartera —</option>
+                  {portfolios.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre_estrategia}  ({p.activos.length} activos · {p.fecha_creacion})
+                    </option>
+                  ))}
+                </select>
+
+                {/* Preview de la cartera seleccionada */}
+                {selectedPortfolio && (
+                  <div style={{
+                    marginTop: '10px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}>
+                    {[...selectedPortfolio.activos]
+                      .sort((a, b) => b.peso_asignado - a.peso_asignado)
+                      .map((a) => (
+                        <div key={a.ticker} style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          backgroundColor: '#21262d',
+                          border: '1px solid #30363d',
+                          borderRadius: '20px',
+                          padding: '3px 10px',
+                          fontSize: '12px',
+                        }}>
+                          <span style={{ color: '#e6edf3', fontWeight: 700 }}>{a.ticker}</span>
+                          <span style={{ color: '#8b949e' }}>{(a.peso_asignado * 100).toFixed(1)}%</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Modo: manual */}
+        {modo === 'manual' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={LABEL}>TICKERS</label>
+              <input
+                value={tickersInput}
+                onChange={(e) => setTickersInput(e.target.value)}
+                placeholder="AAPL, MSFT, GOOG"
+                required
+                style={INPUT}
+              />
+            </div>
+            <div>
+              <label style={LABEL}>PESOS (mismo orden — se normalizan automáticamente)</label>
+              <input
+                value={weightsInput}
+                onChange={(e) => setWeightsInput(e.target.value)}
+                placeholder="40, 35, 25"
+                required
+                style={INPUT}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Periodo — siempre visible */}
+        <div style={{ marginBottom: error ? '12px' : '16px' }}>
+          <label style={LABEL}>PERIODO</label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {PERIODS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPeriod(p)}
+                style={{
+                  padding: '7px 14px',
+                  backgroundColor: period === p ? '#1f6feb' : '#21262d',
+                  color: period === p ? '#fff' : '#8b949e',
+                  border: `1px solid ${period === p ? '#1f6feb' : '#30363d'}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: period === p ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {p}
+              </button>
+            ))}
           </div>
         </div>
-        <p style={{ color: '#8b949e', fontSize: '11px', margin: '0 0 14px' }}>
-          Ejemplo: tickers "AAPL, MSFT, GOOG" con pesos "40, 35, 25" → 40 %, 35 %, 25 %
-        </p>
+
+        {modo === 'manual' && (
+          <p style={{ color: '#8b949e', fontSize: '11px', margin: '0 0 14px' }}>
+            Ejemplo: tickers "AAPL, MSFT, GOOG" con pesos "40, 35, 25" → 40 %, 35 %, 25 %
+          </p>
+        )}
 
         {error && (
           <div style={{
@@ -201,83 +351,44 @@ export default function BacktestPage() {
                   tickFormatter={(v: string) => v.slice(0, 7)}
                   interval="preserveStartEnd"
                 />
-                <YAxis
-                  stroke="#21262d"
-                  tick={{ fill: '#8b949e', fontSize: 11 }}
-                  width={50}
-                />
+                <YAxis stroke="#21262d" tick={{ fill: '#8b949e', fontSize: 11 }} width={50} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '8px', fontSize: '12px' }}
                   labelStyle={{ color: '#8b949e', marginBottom: '4px' }}
                   itemStyle={{ color: '#e6edf3' }}
                 />
-                <Legend
-                  formatter={(value) => (
-                    <span style={{ color: '#e6edf3', fontSize: '13px' }}>{value}</span>
-                  )}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="valor_cartera"
-                  stroke="#58a6ff"
-                  dot={false}
-                  name="Cartera"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="valor_benchmark"
-                  stroke="#3fb950"
-                  dot={false}
-                  name="SPY (Benchmark)"
-                  strokeWidth={2}
-                  strokeDasharray="5 3"
-                />
+                <Legend formatter={(value) => <span style={{ color: '#e6edf3', fontSize: '13px' }}>{value}</span>} />
+                <Line type="monotone" dataKey="valor_cartera" stroke="#58a6ff" dot={false} name="Cartera" strokeWidth={2} />
+                <Line type="monotone" dataKey="valor_benchmark" stroke="#3fb950" dot={false} name="SPY (Benchmark)" strokeWidth={2} strokeDasharray="5 3" />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Global Metrics — fila 1: rentabilidad y riesgo */}
+          {/* Métricas fila 1 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
             {[
-              {
-                label: 'Rent. Acumulada',
-                value: pct(result.rentabilidad_acumulada),
-                color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149',
-              },
-              {
-                label: 'Ret. Anualizado',
-                value: pct(result.retorno_anualizado),
-                color: result.retorno_anualizado >= 0 ? '#3fb950' : '#f85149',
-              },
+              { label: 'Rent. Acumulada',  value: pct(result.rentabilidad_acumulada),  color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149' },
+              { label: 'Ret. Anualizado',  value: pct(result.retorno_anualizado),       color: result.retorno_anualizado >= 0 ? '#3fb950' : '#f85149' },
               { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada), color: '#d29922' },
-              { label: 'Max Drawdown', value: pct(result.max_drawdown), color: '#f85149' },
+              { label: 'Max Drawdown',     value: pct(result.max_drawdown),             color: '#f85149' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
-                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>
-                  {label.toUpperCase()}
-                </div>
+                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>{label.toUpperCase()}</div>
                 <div style={{ color, fontSize: '20px', fontWeight: 700 }}>{value}</div>
               </div>
             ))}
           </div>
 
-          {/* Fila 2: ratios de riesgo ajustado */}
+          {/* Métricas fila 2 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
-              { label: 'Sharpe Ratio', value: fmt(result.sharpe_ratio), color: '#58a6ff' },
+              { label: 'Sharpe Ratio',  value: fmt(result.sharpe_ratio),  color: '#58a6ff' },
               { label: 'Sortino Ratio', value: fmt(result.sortino_ratio), color: '#bc8cff' },
-              { label: 'Calmar Ratio', value: fmt(result.calmar_ratio), color: '#79c0ff' },
-              {
-                label: 'Beta (vs SPY)',
-                value: result.beta !== null ? fmt(result.beta) : '—',
-                color: '#d29922',
-              },
+              { label: 'Calmar Ratio',  value: fmt(result.calmar_ratio),  color: '#79c0ff' },
+              { label: 'Beta (vs SPY)', value: result.beta !== null ? fmt(result.beta) : '—', color: '#d29922' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ ...CARD, textAlign: 'center', padding: '16px' }}>
-                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>
-                  {label.toUpperCase()}
-                </div>
+                <div style={{ color: '#8b949e', fontSize: '10px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '6px' }}>{label.toUpperCase()}</div>
                 <div style={{ color, fontSize: '20px', fontWeight: 700 }}>{value}</div>
               </div>
             ))}
@@ -286,10 +397,8 @@ export default function BacktestPage() {
           {/* Benchmark comparison */}
           <div style={{ ...CARD, marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
-              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
-                TU CARTERA
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? '#3fb950' : '#f85149' }}>
+              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>TU CARTERA</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: result.rentabilidad_acumulada >= 0 ? '#3fb950' : '#f85149' }}>
                 {pct(result.rentabilidad_acumulada)}
               </div>
               <div style={{ color: '#8b949e', fontSize: '12px', marginTop: '4px' }}>
@@ -297,9 +406,7 @@ export default function BacktestPage() {
               </div>
             </div>
             <div>
-              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>
-                BENCHMARK (SPY)
-              </div>
+              <div style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, letterSpacing: '0.4px', marginBottom: '12px' }}>BENCHMARK (SPY)</div>
               <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? '#3fb950' : '#f85149' }}>
                 {pct(result.benchmark_rentabilidad)}
               </div>
@@ -319,13 +426,7 @@ export default function BacktestPage() {
                 <thead>
                   <tr>
                     {['Periodo', 'Intervalo', 'Rent. Cartera', 'Rent. Benchmark', 'Sharpe', 'Sortino', 'MaxDD Cart.', 'Beta'].map((h) => (
-                      <th key={h} style={{
-                        color: '#8b949e', fontSize: '11px', fontWeight: 500,
-                        textAlign: 'left', padding: '0 12px 10px 0',
-                        borderBottom: '1px solid #30363d',
-                        letterSpacing: '0.4px',
-                        whiteSpace: 'nowrap',
-                      }}>
+                      <th key={h} style={{ color: '#8b949e', fontSize: '11px', fontWeight: 500, textAlign: 'left', padding: '0 12px 10px 0', borderBottom: '1px solid #30363d', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
                         {h.toUpperCase()}
                       </th>
                     ))}
@@ -342,16 +443,10 @@ export default function BacktestPage() {
                           <td style={{ color: '#8b949e', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '12px', whiteSpace: 'nowrap' }}>
                             {data.periodo?.inicio} / {data.periodo?.fin}
                           </td>
-                          <td style={{
-                            padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700,
-                            color: (data.cartera?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149',
-                          }}>
+                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700, color: (data.cartera?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149' }}>
                             {pct(data.cartera?.rentabilidad_acumulada ?? 0)}
                           </td>
-                          <td style={{
-                            padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700,
-                            color: (data.benchmark?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149',
-                          }}>
+                          <td style={{ padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px', fontWeight: 700, color: (data.benchmark?.rentabilidad_acumulada ?? 0) >= 0 ? '#3fb950' : '#f85149' }}>
                             {pct(data.benchmark?.rentabilidad_acumulada ?? 0)}
                           </td>
                           <td style={{ color: '#58a6ff', padding: '13px 12px 13px 0', borderBottom: '1px solid #21262d', fontSize: '13px' }}>
@@ -368,10 +463,7 @@ export default function BacktestPage() {
                           </td>
                         </>
                       ) : (
-                        <td colSpan={7} style={{
-                          color: '#8b949e', padding: '13px 0', borderBottom: '1px solid #21262d',
-                          fontSize: '12px', fontStyle: 'italic',
-                        }}>
+                        <td colSpan={7} style={{ color: '#8b949e', padding: '13px 0', borderBottom: '1px solid #21262d', fontSize: '12px', fontStyle: 'italic' }}>
                           Datos no disponibles para este periodo en el rango seleccionado
                         </td>
                       )}
