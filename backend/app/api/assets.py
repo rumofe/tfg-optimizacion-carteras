@@ -1,5 +1,6 @@
 import logging
 
+import requests
 import yfinance as yf
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -10,6 +11,46 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 _connector = MarketDataConnector()
+
+
+@router.get("/search")
+def search_assets(q: str = Query(..., min_length=1, description="Texto a buscar: ticker o nombre de empresa")):
+    """
+    Busca tickers en Yahoo Finance por símbolo o nombre de empresa.
+    Devuelve hasta 8 resultados con ticker, nombre, tipo y exchange.
+    """
+    logger.info("GET /assets/search?q=%s", q)
+    url = "https://query2.finance.yahoo.com/v1/finance/search"
+    params = {
+        "q": q,
+        "lang": "en-US",
+        "region": "US",
+        "quotesCount": 8,
+        "newsCount": 0,
+        "enableFuzzyQuery": False,
+        "enableCb": False,
+    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    try:
+        resp = requests.get(url, params=params, headers=headers, timeout=8)
+        resp.raise_for_status()
+        quotes = resp.json().get("quotes", [])
+    except Exception as exc:
+        logger.error("Error buscando '%s' en Yahoo Finance: %s", q, exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+
+    # Filtrar opciones y resultados sin símbolo; priorizar EQUITY y ETF
+    TIPOS_VALIDOS = {"EQUITY", "ETF", "MUTUALFUND", "INDEX"}
+    return [
+        {
+            "ticker": item["symbol"],
+            "nombre": item.get("longname") or item.get("shortname") or item["symbol"],
+            "tipo": item.get("quoteType", ""),
+            "exchange": item.get("exchange", ""),
+        }
+        for item in quotes
+        if item.get("symbol") and item.get("quoteType") in TIPOS_VALIDOS
+    ]
 
 
 @router.get("/{ticker}/prices")

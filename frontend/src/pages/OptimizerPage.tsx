@@ -4,6 +4,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
 } from 'recharts';
 import { optimizePortfolio, savePortfolio, OptimizeResult } from '../services/api';
+import TickerSearch from '../components/TickerSearch';
 
 const COLORS = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#79c0ff', '#fb8500', '#ff6b9d'];
 
@@ -57,7 +58,7 @@ function FronteraTooltip({ active, payload }: any) {
 
 
 export default function OptimizerPage() {
-  const [tickersInput, setTickersInput] = useState('');
+  const [tickers, setTickers] = useState<string[]>([]);
   const [capital, setCapital] = useState(10000);
   const [maxVol, setMaxVol] = useState(20);
   const [loading, setLoading] = useState(false);
@@ -73,13 +74,9 @@ export default function OptimizerPage() {
 
   async function handleOptimize(e: React.FormEvent) {
     e.preventDefault();
-    const tickers = tickersInput
-      .split(',')
-      .map((t) => t.trim().toUpperCase())
-      .filter(Boolean);
 
     if (tickers.length < 2) {
-      setError('Introduce al menos 2 tickers separados por comas (ej: AAPL, MSFT, GOOG)');
+      setError('Añade al menos 2 activos para optimizar la cartera.');
       return;
     }
 
@@ -156,22 +153,19 @@ export default function OptimizerPage() {
 
       {/* Form */}
       <form onSubmit={handleOptimize} style={{ ...CARD, marginBottom: '28px' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr',
-          gap: '16px',
-          marginBottom: error ? '12px' : '16px',
-        }}>
-          <div>
-            <label style={LABEL}>TICKERS (separados por comas)</label>
-            <input
-              value={tickersInput}
-              onChange={(e) => setTickersInput(e.target.value)}
-              placeholder="AAPL, MSFT, GOOG, AMZN"
-              required
-              style={INPUT}
-            />
-          </div>
+        {/* Buscador de activos */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={LABEL}>ACTIVOS DE LA CARTERA</label>
+          <TickerSearch selected={tickers} onChange={setTickers} maxItems={10} />
+          {tickers.length > 0 && tickers.length < 2 && (
+            <div style={{ color: '#8b949e', fontSize: '11px', marginTop: '6px' }}>
+              Añade al menos un activo más para poder optimizar
+            </div>
+          )}
+        </div>
+
+        {/* Capital y volatilidad */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: error ? '12px' : '16px' }}>
           <div>
             <label style={LABEL}>CAPITAL (€)</label>
             <input
@@ -184,7 +178,7 @@ export default function OptimizerPage() {
             />
           </div>
           <div>
-            <label style={LABEL}>VOL. MÁXIMA (%)</label>
+            <label style={LABEL}>VOLATILIDAD MÁXIMA (%)</label>
             <input
               type="number"
               value={maxVol}
@@ -210,13 +204,14 @@ export default function OptimizerPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || tickers.length < 2}
           style={{
             padding: '10px 24px',
-            backgroundColor: loading ? '#21262d' : '#1f6feb',
-            color: '#fff', border: 'none', borderRadius: '6px',
+            backgroundColor: (loading || tickers.length < 2) ? '#21262d' : '#1f6feb',
+            color: (loading || tickers.length < 2) ? '#8b949e' : '#fff',
+            border: 'none', borderRadius: '6px',
             fontSize: '14px', fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: (loading || tickers.length < 2) ? 'not-allowed' : 'pointer',
           }}
         >
           {loading ? 'Optimizando…' : 'Optimizar cartera'}
