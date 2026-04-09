@@ -1,25 +1,6 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import { getProfile, updateProfile, UserProfile } from '../services/api';
-
-const CARD: CSSProperties = {
-  backgroundColor: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  padding: '24px',
-};
-
-const LABEL: CSSProperties = {
-  display: 'block', color: 'var(--text-2)', fontSize: '11px',
-  marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px',
-  textTransform: 'uppercase',
-};
-
-const INPUT: CSSProperties = {
-  width: '100%', padding: '10px 14px',
-  backgroundColor: 'var(--bg)', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', color: 'var(--text)',
-  fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-};
+import { CARD, LABEL, INPUT } from '../styles';
 
 const PERFILES = [
   { id: 'conservador',   label: 'Conservador',   vol: 8,    desc: 'Preservación de capital · ≤ 8 % vol.' },
@@ -29,6 +10,13 @@ const PERFILES = [
 ] as const;
 
 type PerfilId = (typeof PERFILES)[number]['id'];
+
+const ACCENT_COLORS: Record<PerfilId, string> = {
+  conservador:   'var(--green)',
+  moderado:      'var(--accent)',
+  agresivo:      'var(--red)',
+  personalizado: 'var(--purple)',
+};
 
 function inferPerfil(vol: number | null): PerfilId {
   if (vol === 8)  return 'conservador';
@@ -85,17 +73,10 @@ export default function ProfilePage() {
     );
   }
 
-  const ACCENT_COLORS: Record<PerfilId, string> = {
-    conservador:   'var(--green)',
-    moderado:      'var(--accent)',
-    agresivo:      'var(--red)',
-    personalizado: 'var(--purple)',
-  };
-
   return (
     <div style={{ maxWidth: '600px' }}>
       {/* Header */}
-      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.3px' }}>
+      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px' }}>
         Perfil de Inversor
       </h1>
       <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>
@@ -107,13 +88,13 @@ export default function ProfilePage() {
 
         {/* Cuenta */}
         <div style={CARD}>
-          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '10px' }}>
+          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
             Cuenta
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%)',
+              backgroundColor: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '14px', fontWeight: 700, color: '#fff', flexShrink: 0,
             }}>
@@ -151,7 +132,7 @@ export default function ProfilePage() {
 
         {/* Perfil de riesgo */}
         <div style={CARD}>
-          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '14px' }}>
+          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '14px' }}>
             Perfil de riesgo
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -216,7 +197,7 @@ export default function ProfilePage() {
           disabled={saving}
           style={{
             padding: '11px 24px',
-            background: 'linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%)',
+            backgroundColor: 'var(--accent)',
             border: 'none', borderRadius: 'var(--radius-sm)',
             color: '#fff', fontSize: '14px', fontWeight: 600,
             cursor: saving ? 'not-allowed' : 'pointer',

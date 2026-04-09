@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { updatePortfolio, Portfolio } from '../services/api';
 import TickerSearch from './TickerSearch';
+import { COLORS } from '../styles';
 
 interface Props {
   portfolio: Portfolio;
   onClose: () => void;
   onSaved: (updated: Portfolio) => void;
 }
-
-const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
 const INPUT_STYLE: React.CSSProperties = {
   width: '100%', padding: '9px 12px',
@@ -99,7 +98,6 @@ export default function EditPortfolioModal({ portfolio, onClose, onSaved }: Prop
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         backgroundColor: 'rgba(0,0,0,0.6)',
-        backdropFilter: 'blur(4px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '24px',
       }}
@@ -138,7 +136,7 @@ export default function EditPortfolioModal({ portfolio, onClose, onSaved }: Prop
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block', color: 'var(--text-2)', fontSize: '10px',
-              fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '6px',
+              fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px',
             }}>
               Nombre de la estrategia
             </label>
@@ -158,7 +156,7 @@ export default function EditPortfolioModal({ portfolio, onClose, onSaved }: Prop
             }}>
               <label style={{
                 color: 'var(--text-2)', fontSize: '10px',
-                fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase',
+                fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase',
               }}>
                 Activos y pesos
               </label>
@@ -238,7 +236,7 @@ export default function EditPortfolioModal({ portfolio, onClose, onSaved }: Prop
           <div>
             <label style={{
               display: 'block', color: 'var(--text-2)', fontSize: '10px',
-              fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', marginBottom: '6px',
+              fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px',
             }}>
               Añadir activos
             </label>
@@ -296,7 +294,7 @@ export default function EditPortfolioModal({ portfolio, onClose, onSaved }: Prop
               disabled={saving}
               style={{
                 padding: '9px 20px',
-                background: 'linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%)',
+                backgroundColor: 'var(--accent)',
                 border: 'none', borderRadius: 'var(--radius-sm)',
                 color: '#fff', fontSize: '13px', fontWeight: 600,
                 cursor: saving ? 'not-allowed' : 'pointer',

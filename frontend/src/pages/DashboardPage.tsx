@@ -5,9 +5,9 @@ import ThemeSelector from '../components/ThemeSelector';
 import { getProfile } from '../services/api';
 
 const NAV_ITEMS = [
-  { to: 'optimizer', label: 'Optimizador', icon: '⬡' },
-  { to: 'xray',      label: 'X-Ray',       icon: '◎' },
-  { to: 'backtest',  label: 'Backtesting', icon: '↗' },
+  { to: 'optimizer', label: 'Optimizador' },
+  { to: 'xray',      label: 'X-Ray'       },
+  { to: 'backtest',  label: 'Backtesting' },
 ];
 
 export default function DashboardPage() {
@@ -43,13 +43,12 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '9px',
-              background: 'linear-gradient(135deg, #4f86f7 0%, #9b6ef5 100%)',
+              backgroundColor: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px', fontWeight: 800, color: '#fff',
-              flexShrink: 0, letterSpacing: '-0.5px',
+              fontSize: '14px', fontWeight: 800, color: '#fff', flexShrink: 0,
             }}>PL</div>
             <div>
-              <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.2px' }}>
+              <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: '15px' }}>
                 PortfolioLab
               </div>
               <div style={{ color: 'var(--text-3)', fontSize: '11px', marginTop: '1px' }}>TFG · UMA 2026</div>
@@ -61,25 +60,24 @@ export default function DashboardPage() {
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           <div style={{
             color: 'var(--text-3)', fontSize: '10px', fontWeight: 600,
-            letterSpacing: '0.8px', padding: '4px 10px 10px', textTransform: 'uppercase',
+            letterSpacing: '0.5px', padding: '4px 10px 10px', textTransform: 'uppercase',
           }}>
             Módulos
           </div>
-          {NAV_ITEMS.map(({ to, label, icon }) => (
+          {NAV_ITEMS.map(({ to, label }) => (
             <NavLink
               key={to} to={to}
               style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: '11px',
+                display: 'flex', alignItems: 'center',
                 padding: '10px 12px', borderRadius: 'var(--radius-sm)',
                 textDecoration: 'none',
                 color: isActive ? 'var(--text)' : 'var(--text-2)',
                 backgroundColor: isActive ? 'var(--raised)' : 'transparent',
                 borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
                 fontSize: '13.5px', fontWeight: isActive ? 600 : 400,
-                marginBottom: '2px', transition: 'all 0.15s',
+                marginBottom: '2px', transition: 'color 0.15s, background-color 0.15s',
               })}
             >
-              <span style={{ fontSize: '14px', opacity: 0.85, minWidth: '16px', textAlign: 'center' }}>{icon}</span>
               {label}
             </NavLink>
           ))}
@@ -103,7 +101,7 @@ export default function DashboardPage() {
             {/* Avatar */}
             <div style={{
               width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%)',
+              backgroundColor: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '12px', fontWeight: 700, color: '#fff',
             }}>
@@ -144,8 +142,7 @@ export default function DashboardPage() {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <span style={{ fontSize: '13px' }}>⎋</span>
-              Cerrar sesión
+                Cerrar sesión
             </button>
           </div>
         </div>

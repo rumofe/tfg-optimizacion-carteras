@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { searchAssets, SearchResult } from '../services/api';
+import { COLORS } from '../styles';
 
 const LOGO_BASE = 'https://assets.parqet.com/logos/symbol/';
-const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
 
 const TIPO_BADGE: Record<string, string> = {
   EQUITY:     'Acción',

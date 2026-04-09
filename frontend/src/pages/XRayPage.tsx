@@ -5,15 +5,7 @@ import {
 } from 'recharts';
 import { getPortfolios, deletePortfolio, getTickerInfo, Portfolio, TickerInfo } from '../services/api';
 import EditPortfolioModal from '../components/EditPortfolioModal';
-
-const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
-
-const CARD = {
-  backgroundColor: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  padding: '24px',
-};
+import { COLORS, CARD } from '../styles';
 
 interface SectorData { sector: string; peso: number; }
 interface PaisData   { pais:   string; peso: number; }
@@ -113,7 +105,7 @@ export default function XRayPage() {
 
   return (
     <div>
-      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.3px' }}>
+      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px' }}>
         X-Ray de Carteras
       </h1>
       <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>
@@ -298,7 +290,7 @@ export default function XRayPage() {
                     {/* ── Sectorial ── */}
                     {sectores.length > 0 && (
                       <div>
-                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>
                           Exposición sectorial
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
@@ -334,7 +326,7 @@ export default function XRayPage() {
                     {/* ── Geográfico ── */}
                     {paises.length > 0 && (
                       <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '14px' }}>
+                        <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>
                           Exposición geográfica
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
