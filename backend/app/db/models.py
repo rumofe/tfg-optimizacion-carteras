@@ -1,5 +1,3 @@
-from datetime import date
-
 from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -38,10 +36,7 @@ class Activo(Base):
     id = Column(Integer, primary_key=True, index=True)
     isin_ticker = Column(String, unique=True, nullable=False, index=True)
     nombre_fondo = Column(String, nullable=False)
-    categoria = Column(String, nullable=True)
-
     carteras = relationship("ActivoCartera", back_populates="activo")
-    historico = relationship("HistoricoPrecios", back_populates="activo")
 
 
 class ActivoCartera(Base):
@@ -55,12 +50,3 @@ class ActivoCartera(Base):
     activo = relationship("Activo", back_populates="carteras")
 
 
-class HistoricoPrecios(Base):
-    __tablename__ = "historico_precios"
-
-    id = Column(Integer, primary_key=True, index=True)
-    activo_id = Column(Integer, ForeignKey("activo.id"), nullable=False)
-    fecha_cotizacion = Column(Date, nullable=False)
-    valor_liquidativo = Column(Float, nullable=False)
-
-    activo = relationship("Activo", back_populates="historico")

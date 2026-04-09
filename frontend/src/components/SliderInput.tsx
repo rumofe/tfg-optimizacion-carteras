@@ -103,7 +103,7 @@ export default function SliderInput({
       }}>
         <label htmlFor={id} style={{
           color: 'var(--text-2)', fontSize: '11px',
-          fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase',
+          fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase',
         }}>
           {label}
         </label>

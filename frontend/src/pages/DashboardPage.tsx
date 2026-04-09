@@ -129,7 +129,6 @@ export default function DashboardPage() {
                 border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
                 fontSize: '13px', fontWeight: 500, cursor: 'pointer',
                 transition: 'all 0.15s', textAlign: 'left',
-                display: 'flex', alignItems: 'center', gap: '8px',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = 'var(--red)';
