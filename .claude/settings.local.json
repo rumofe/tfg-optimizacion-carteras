@@ -10,7 +10,22 @@
       "Read(//c/Users/rumofe/AppData/Local/**)",
       "Bash(cmd.exe:*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(node_modules/.bin/vite build:*)"
+      "Bash(node_modules/.bin/vite build:*)",
+      "Bash(python -c ':*)",
+      "Bash(./backend/venv/Scripts/python.exe -c ':*)",
+      "Bash(npm run:*)",
+      "Bash(./venv/Scripts/python.exe -c ':*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(xargs grep:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(node -e \"require\\('docx'\\); console.log\\('docx ok'\\)\")",
+      "Bash(npm install:*)",
+      "Bash(python scripts/office/validate.py \"C:\\\\TFG\\\\tfg-optimizacion-carteras\\\\PortfolioLab_Resumen_Tecnico.docx\")",
+      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\('/c/TFG/tfg-optimizacion-carteras/PortfolioLab_Resumen_Tecnico.docx'\\); print\\('OK, ficheros:', len\\(z.namelist\\(\\)\\)\\)\")",
+      "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\('C:\\\\\\\\\\\\\\\\TFG\\\\\\\\\\\\\\\\tfg-optimizacion-carteras\\\\\\\\\\\\\\\\PortfolioLab_Resumen_Tecnico.docx'\\); print\\('OK, ficheros:', len\\(z.namelist\\(\\)\\)\\)\")",
+      "Bash(python -)"
     ]
   }
 }
