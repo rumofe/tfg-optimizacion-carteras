@@ -1,30 +1,17 @@
-import { useState, CSSProperties } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login, register } from '../services/api';
+import { INPUT } from '../styles';
 
 type Tab = 'login' | 'register';
 
-const INPUT: CSSProperties = {
-  width: '100%',
-  padding: '11px 14px',
-  backgroundColor: 'var(--bg)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
-  color: 'var(--text)',
-  fontSize: '14px',
-  outline: 'none',
-  boxSizing: 'border-box',
-  transition: 'border-color 0.15s',
-};
-
-const LABEL: CSSProperties = {
+const LABEL = {
   display: 'block',
   color: 'var(--text-2)',
   fontSize: '12px',
   fontWeight: 500,
-  letterSpacing: '0.3px',
   marginBottom: '7px',
-};
+} as const;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -59,8 +46,6 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px',
-      /* Glow radial muy sutil en el centro */
-      background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(79,134,247,0.08) 0%, var(--bg) 70%)',
     }}>
       <div style={{ width: '100%', maxWidth: '420px' }}>
 
@@ -68,18 +53,16 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
             width: '52px', height: '52px', borderRadius: '14px',
-            background: 'linear-gradient(135deg, #4f86f7 0%, #9b6ef5 100%)',
+            backgroundColor: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '20px', fontWeight: 800, color: '#fff',
-            margin: '0 auto 18px', letterSpacing: '-0.5px',
-            boxShadow: '0 8px 32px rgba(79,134,247,0.3)',
+            margin: '0 auto 18px',
           }}>
             PL
           </div>
           <h1 style={{
             color: 'var(--text)', fontSize: '22px',
             fontWeight: 700, margin: '0 0 6px',
-            letterSpacing: '-0.3px',
           }}>
             PortfolioLab
           </h1>
@@ -182,9 +165,7 @@ export default function LoginPage() {
               style={{
                 width: '100%',
                 padding: '11px',
-                background: loading
-                  ? 'var(--raised)'
-                  : 'linear-gradient(135deg, #4f86f7 0%, #6d5ef5 100%)',
+                backgroundColor: loading ? 'var(--raised)' : 'var(--accent)',
                 color: loading ? 'var(--text-2)' : '#fff',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
@@ -192,7 +173,6 @@ export default function LoginPage() {
                 fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'opacity 0.15s',
-                letterSpacing: '0.1px',
               }}
             >
               {loading
