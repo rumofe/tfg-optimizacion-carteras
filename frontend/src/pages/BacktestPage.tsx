@@ -1,9 +1,10 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../services/api';
+import { CARD, INPUT, LABEL } from '../styles';
 
 const PERIODS = ['1y', '2y', '3y', '5y', '10y'];
 
@@ -21,35 +22,6 @@ function downsample<T>(arr: T[], maxLen: number): T[] {
   const step = Math.ceil(arr.length / maxLen);
   return arr.filter((_, i) => i % step === 0 || i === arr.length - 1);
 }
-
-const INPUT: CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  backgroundColor: 'var(--bg)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)',
-  color: 'var(--text)',
-  fontSize: '14px',
-  outline: 'none',
-  boxSizing: 'border-box',
-};
-
-const LABEL: CSSProperties = {
-  display: 'block',
-  color: 'var(--text-2)',
-  fontSize: '11px',
-  marginBottom: '6px',
-  fontWeight: 600,
-  letterSpacing: '0.5px',
-  textTransform: 'uppercase',
-};
-
-const CARD: CSSProperties = {
-  backgroundColor: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  padding: '24px',
-};
 
 type Modo = 'guardada' | 'manual';
 
@@ -142,7 +114,7 @@ export default function BacktestPage() {
 
   return (
     <div>
-      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.3px' }}>
+      <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px' }}>
         Backtesting
       </h1>
       <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>

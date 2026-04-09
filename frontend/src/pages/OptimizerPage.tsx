@@ -1,4 +1,4 @@
-import { useState, useEffect, CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
@@ -6,30 +6,9 @@ import {
 import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
 import SliderInput from '../components/SliderInput';
-
-const COLORS = ['#4f86f7', '#0ea875', '#f0a020', '#9b6ef5', '#e84040', '#22d3ee', '#f472b6', '#a3e635'];
+import { COLORS, CARD, INPUT, LABEL } from '../styles';
 
 function pct(n: number) { return `${(n * 100).toFixed(2)}%`; }
-
-const INPUT: CSSProperties = {
-  width: '100%', padding: '10px 14px',
-  backgroundColor: 'var(--bg)', border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-sm)', color: 'var(--text)',
-  fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-};
-
-const LABEL: CSSProperties = {
-  display: 'block', color: 'var(--text-2)', fontSize: '11px',
-  marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px',
-  textTransform: 'uppercase',
-};
-
-const CARD: CSSProperties = {
-  backgroundColor: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius)',
-  padding: '24px',
-};
 
 function FronteraTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
@@ -118,7 +97,7 @@ export default function OptimizerPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+        <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 4px' }}>
           Optimizador de Carteras
         </h1>
         <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: 0 }}>
@@ -175,7 +154,7 @@ export default function OptimizerPage() {
 
         <button type="submit" disabled={!canSubmit} style={{
           padding: '10px 28px',
-          background: canSubmit ? 'linear-gradient(135deg, #4f86f7 0%, #6d5ef5 100%)' : 'var(--raised)',
+          backgroundColor: canSubmit ? 'var(--accent)' : 'var(--raised)',
           color: canSubmit ? '#fff' : 'var(--text-3)',
           border: 'none', borderRadius: 'var(--radius-sm)',
           fontSize: '14px', fontWeight: 600,
@@ -202,7 +181,7 @@ export default function OptimizerPage() {
                 <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
                   {label}
                 </div>
-                <div style={{ color, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px' }}>{value}</div>
+                <div style={{ color, fontSize: '28px', fontWeight: 700 }}>{value}</div>
               </div>
             ))}
           </div>
