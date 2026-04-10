@@ -7,7 +7,7 @@ import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../servic
 import TickerSearch from '../components/TickerSearch';
 import { CARD, COLORS, INPUT, LABEL } from '../styles';
 
-const PERIODS = ['1y', '2y', '3y', '5y', '10y'];
+const PERIODS = ['1y', '3y', '5y', '10y', '20y', 'max'];
 
 const CRISIS_LABELS: Record<string, string> = {
   covid:           'COVID-19 (Feb–Mar 2020)',
