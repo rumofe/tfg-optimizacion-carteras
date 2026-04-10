@@ -4,7 +4,8 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../services/api';
-import { CARD, INPUT, LABEL } from '../styles';
+import TickerSearch from '../components/TickerSearch';
+import { CARD, COLORS, INPUT, LABEL } from '../styles';
 
 const PERIODS = ['1y', '2y', '3y', '5y', '10y'];
 
@@ -33,8 +34,8 @@ export default function BacktestPage() {
   const [selectedId, setSelectedId] = useState<number | ''>('');
 
   // Entradas manuales
-  const [tickersInput, setTickersInput] = useState('');
-  const [weightsInput, setWeightsInput] = useState('');
+  const [manualTickers, setManualTickers] = useState<string[]>([]);
+  const [manualWeights, setManualWeights] = useState<Record<string, string>>({});
 
   const [period, setPeriod] = useState('5y');
   const [loading, setLoading] = useState(false);
@@ -53,9 +54,19 @@ export default function BacktestPage() {
 
   function cargarCarteraEnForm(p: Portfolio) {
     const sorted = [...p.activos].sort((a, b) => b.peso_asignado - a.peso_asignado);
-    setTickersInput(sorted.map((a) => a.ticker).join(', '));
-    // Mostrar pesos como porcentaje redondeado (se normalizan al enviar)
-    setWeightsInput(sorted.map((a) => (a.peso_asignado * 100).toFixed(2)).join(', '));
+    setManualTickers(sorted.map((a) => a.ticker));
+    setManualWeights(Object.fromEntries(
+      sorted.map((a) => [a.ticker, (a.peso_asignado * 100).toFixed(2)])
+    ));
+  }
+
+  function handleManualTickersChange(tickers: string[]) {
+    setManualTickers(tickers);
+    setManualWeights((prev) => {
+      const next: Record<string, string> = {};
+      tickers.forEach((t) => { next[t] = prev[t] ?? ''; });
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -73,20 +84,9 @@ export default function BacktestPage() {
       tickers = sorted.map((a) => a.ticker);
       rawWeights = sorted.map((a) => a.peso_asignado);
     } else {
-      tickers = tickersInput
-        .split(',')
-        .map((t) => t.trim().toUpperCase())
-        .filter(Boolean);
-      rawWeights = weightsInput
-        .split(',')
-        .map((w) => parseFloat(w.trim()))
-        .filter((n) => !isNaN(n));
-
-      if (tickers.length === 0) { setError('Introduce al menos un ticker.'); return; }
-      if (rawWeights.length !== tickers.length) {
-        setError(`El número de pesos (${rawWeights.length}) no coincide con el de tickers (${tickers.length}).`);
-        return;
-      }
+      if (manualTickers.length === 0) { setError('Añade al menos un ticker.'); return; }
+      tickers = manualTickers;
+      rawWeights = manualTickers.map((t) => parseFloat(manualWeights[t] ?? '0') || 0);
     }
 
     const total = rawWeights.reduce((a, b) => a + b, 0);
@@ -224,27 +224,48 @@ export default function BacktestPage() {
 
         {/* Modo: manual */}
         {modo === 'manual' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={LABEL}>TICKERS</label>
-              <input
-                value={tickersInput}
-                onChange={(e) => setTickersInput(e.target.value)}
-                placeholder="AAPL, MSFT, GOOG"
-                required
-                style={INPUT}
-              />
-            </div>
-            <div>
-              <label style={LABEL}>PESOS (mismo orden — se normalizan automáticamente)</label>
-              <input
-                value={weightsInput}
-                onChange={(e) => setWeightsInput(e.target.value)}
-                placeholder="40, 35, 25"
-                required
-                style={INPUT}
-              />
-            </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={LABEL}>Activos</label>
+            <TickerSearch selected={manualTickers} onChange={handleManualTickersChange} maxItems={10} />
+
+            {manualTickers.length > 0 && (
+              <div style={{ marginTop: '14px' }}>
+                <label style={LABEL}>Pesos (se normalizan automáticamente)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {manualTickers.map((ticker, i) => (
+                    <div key={ticker} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '8px 10px',
+                      backgroundColor: 'var(--raised)',
+                      borderRadius: 'var(--radius-sm)',
+                    }}>
+                      <div style={{
+                        width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                        backgroundColor: COLORS[i % COLORS.length],
+                      }} />
+                      <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, minWidth: '64px' }}>
+                        {ticker}
+                      </span>
+                      <div style={{ flex: 1, position: 'relative' }}>
+                        <input
+                          type="number" min={0} max={100} step={1}
+                          placeholder="0"
+                          value={manualWeights[ticker] ?? ''}
+                          onChange={(e) => setManualWeights((prev) => ({ ...prev, [ticker]: e.target.value }))}
+                          style={{ ...INPUT, paddingRight: '28px', textAlign: 'right' }}
+                          onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                          onBlur={(e)  => (e.currentTarget.style.borderColor = 'var(--border)')}
+                        />
+                        <span style={{
+                          position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                          color: 'var(--text-2)', fontSize: '12px', pointerEvents: 'none',
+                        }}>%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
