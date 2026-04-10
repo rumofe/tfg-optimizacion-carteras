@@ -1,9 +1,17 @@
 import logging
 import urllib.request
+from datetime import date, timedelta
 
 import pandas as pd
 import requests
 import yfinance as yf
+
+# Periodos que yfinance no reconoce nativamente → los convertimos a start date
+_CUSTOM_PERIOD_YEARS: dict[str, int] = {
+    "15y": 15,
+    "20y": 20,
+    "25y": 25,
+}
 
 from app.core.config import settings
 
@@ -44,7 +52,12 @@ class MarketDataConnector:
             ("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         ]
         urllib.request.install_opener(opener)
-        data = yf.Ticker(ticker).history(period=period, auto_adjust=True)
+        ticker_obj = yf.Ticker(ticker)
+        if period in _CUSTOM_PERIOD_YEARS:
+            start = date.today() - timedelta(days=_CUSTOM_PERIOD_YEARS[period] * 365)
+            data = ticker_obj.history(start=str(start), auto_adjust=True)
+        else:
+            data = ticker_obj.history(period=period, auto_adjust=True)
         if data.empty:
             raise ValueError("yfinance devolvió datos vacíos")
         df = data[["Close"]].reset_index()
