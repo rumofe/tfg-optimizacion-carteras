@@ -7,7 +7,11 @@ import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../servic
 import TickerSearch from '../components/TickerSearch';
 import { CARD, COLORS, INPUT, LABEL } from '../styles';
 
-const PERIODS = ['1y', '3y', '5y', '10y', '20y', 'max'];
+const PERIODS = ['ytd', '1y', '3y', '5y', '10y', '20y', 'max'];
+const PERIOD_LABELS: Record<string, string> = { ytd: 'YTD' };
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function yearStartStr() { return `${new Date().getFullYear()}-01-01`; }
 
 const CRISIS_LABELS: Record<string, string> = {
   covid:           'COVID-19 (Feb–Mar 2020)',
@@ -38,6 +42,9 @@ export default function BacktestPage() {
   const [manualWeights, setManualWeights] = useState<Record<string, string>>({});
 
   const [period, setPeriod] = useState('5y');
+  const [tipoPeriodo, setTipoPeriodo] = useState<'predefinido' | 'personalizado'>('predefinido');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin]       = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -95,12 +102,18 @@ export default function BacktestPage() {
     const pesos: Record<string, number> = {};
     tickers.forEach((t, i) => { pesos[t] = rawWeights[i] / total; });
 
+    if (tipoPeriodo === 'personalizado' && !fechaInicio) {
+      setError('Indica al menos la fecha de inicio.'); return;
+    }
+
     setError('');
     setResult(null);
     setLoading(true);
 
     try {
-      const { data } = await runBacktest(tickers, pesos, period);
+      const { data } = tipoPeriodo === 'personalizado'
+        ? await runBacktest(tickers, pesos, '5y', fechaInicio, fechaFin || undefined)
+        : await runBacktest(tickers, pesos, period);
       setResult(data);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -272,35 +285,109 @@ export default function BacktestPage() {
         {/* Periodo — siempre visible */}
         <div style={{ marginBottom: error ? '12px' : '16px' }}>
           <label style={LABEL}>PERIODO</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {PERIODS.map((p) => (
+
+          {/* Sub-toggle predefinido / personalizado */}
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'var(--bg)',
+            borderRadius: '6px',
+            padding: '3px',
+            marginBottom: '10px',
+            width: 'fit-content',
+          }}>
+            {(['predefinido', 'personalizado'] as const).map((t) => (
               <button
-                key={p}
+                key={t}
                 type="button"
-                onClick={() => setPeriod(p)}
+                onClick={() => { setTipoPeriodo(t); setError(''); }}
                 style={{
-                  padding: '7px 14px',
-                  backgroundColor: period === p ? 'var(--accent)' : 'var(--raised)',
-                  color: period === p ? '#fff' : 'var(--text-2)',
-                  border: `1px solid ${period === p ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: period === p ? 600 : 400,
+                  padding: '5px 14px',
+                  backgroundColor: tipoPeriodo === t ? 'var(--raised)' : 'transparent',
+                  color: tipoPeriodo === t ? 'var(--text)' : 'var(--text-2)',
+                  border: 'none',
+                  borderRadius: '4px',
                   cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: tipoPeriodo === t ? 600 : 400,
                   transition: 'all 0.15s',
                 }}
               >
-                {p}
+                {t === 'predefinido' ? 'Predefinido' : 'Rango de fechas'}
               </button>
             ))}
           </div>
-        </div>
 
-        {modo === 'manual' && (
-          <p style={{ color: 'var(--text-2)', fontSize: '11px', margin: '0 0 14px' }}>
-            Ejemplo: tickers "AAPL, MSFT, GOOG" con pesos "40, 35, 25" → 40 %, 35 %, 25 %
-          </p>
-        )}
+          {tipoPeriodo === 'predefinido' && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {PERIODS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPeriod(p)}
+                  style={{
+                    padding: '7px 14px',
+                    backgroundColor: period === p ? 'var(--accent)' : 'var(--raised)',
+                    color: period === p ? '#fff' : 'var(--text-2)',
+                    border: `1px solid ${period === p ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: period === p ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {PERIOD_LABELS[p] ?? p}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tipoPeriodo === 'personalizado' && (
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 500 }}>DESDE</span>
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  max={fechaFin || todayStr()}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  style={{ ...INPUT, width: '150px' }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = 'var(--border)')}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 500 }}>HASTA</span>
+                <input
+                  type="date"
+                  value={fechaFin}
+                  min={fechaInicio || undefined}
+                  max={todayStr()}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  style={{ ...INPUT, width: '150px' }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = 'var(--border)')}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setFechaInicio(yearStartStr()); setFechaFin(todayStr()); }}
+                style={{
+                  alignSelf: 'flex-end',
+                  padding: '7px 14px',
+                  backgroundColor: 'var(--raised)',
+                  color: 'var(--text-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                YTD
+              </button>
+            </div>
+          )}
+        </div>
 
         {error && (
           <div style={{
