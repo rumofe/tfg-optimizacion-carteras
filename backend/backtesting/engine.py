@@ -69,15 +69,22 @@ def _calcular_metricas(precio_serie: pd.Series, benchmark_serie: pd.Series | Non
 
 
 class BacktestEngine:
-    def __init__(self, tickers: list[str], pesos: dict[str, float], periodo: str = "5y"):
+    def __init__(
+        self,
+        tickers: list[str],
+        pesos: dict[str, float],
+        periodo: str = "5y",
+        fecha_inicio: str | None = None,
+        fecha_fin: str | None = None,
+    ):
         connector = MarketDataConnector()
 
         precios: dict[str, pd.Series] = {}
         for ticker in tickers:
-            df = connector.get_historical_prices(ticker, periodo)
+            df = connector.get_historical_prices(ticker, periodo, fecha_inicio, fecha_fin)
             precios[ticker] = df.set_index("fecha")["valor_liquidativo"]
 
-        df_spy = connector.get_historical_prices("SPY", periodo)
+        df_spy = connector.get_historical_prices("SPY", periodo, fecha_inicio, fecha_fin)
         precios["SPY"] = df_spy.set_index("fecha")["valor_liquidativo"]
 
         price_df = pd.DataFrame(precios).dropna()

@@ -11,6 +11,8 @@ class BacktestRequest(BaseModel):
     tickers: list[str]
     pesos: dict[str, float]
     periodo: str = "5y"
+    fecha_inicio: str | None = None
+    fecha_fin: str | None = None
 
     @field_validator("pesos")
     @classmethod
@@ -40,6 +42,8 @@ def run_backtest(payload: BacktestRequest):
             tickers=payload.tickers,
             pesos=payload.pesos,
             periodo=payload.periodo,
+            fecha_inicio=payload.fecha_inicio,
+            fecha_fin=payload.fecha_fin,
         )
         resultado = engine.ejecutar()
         crisis = engine.analizar_crisis()

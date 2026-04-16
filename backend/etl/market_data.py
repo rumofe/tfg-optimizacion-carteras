@@ -23,14 +23,21 @@ class DataSourceError(Exception):
 
 
 class MarketDataConnector:
-    def get_historical_prices(self, ticker: str, period: str = "1y") -> pd.DataFrame:
+    def get_historical_prices(
+        self,
+        ticker: str,
+        period: str = "1y",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> pd.DataFrame:
         """
         Devuelve DataFrame con columnas [fecha, valor_liquidativo].
+        Si se proporcionan start/end, tienen precedencia sobre period.
         Intenta yfinance primero; si falla, Alpha Vantage como fallback.
         """
-        logger.info("Descargando precios para %s (periodo %s)...", ticker, period)
+        logger.info("Descargando precios para %s (periodo %s, start=%s, end=%s)...", ticker, period, start, end)
         try:
-            return self._from_yfinance(ticker, period)
+            return self._from_yfinance(ticker, period, start, end)
         except Exception as exc:
             logger.warning("yfinance falló para %s: %s. Probando Alpha Vantage...", ticker, exc)
 
@@ -45,7 +52,7 @@ class MarketDataConnector:
             f"No se pudieron obtener datos para '{ticker}' desde ninguna fuente."
         )
 
-    def _from_yfinance(self, ticker: str, period: str) -> pd.DataFrame:
+    def _from_yfinance(self, ticker: str, period: str, start: str | None = None, end: str | None = None) -> pd.DataFrame:
         yf.set_tz_cache_location("/tmp")
         opener = urllib.request.build_opener()
         opener.addheaders = [
@@ -53,9 +60,15 @@ class MarketDataConnector:
         ]
         urllib.request.install_opener(opener)
         ticker_obj = yf.Ticker(ticker)
-        if period in _CUSTOM_PERIOD_YEARS:
-            start = date.today() - timedelta(days=_CUSTOM_PERIOD_YEARS[period] * 365)
-            data = ticker_obj.history(start=str(start), auto_adjust=True)
+        if start:
+            # Rango de fechas personalizado
+            kwargs = {"start": start, "auto_adjust": True}
+            if end:
+                kwargs["end"] = end
+            data = ticker_obj.history(**kwargs)
+        elif period in _CUSTOM_PERIOD_YEARS:
+            computed_start = date.today() - timedelta(days=_CUSTOM_PERIOD_YEARS[period] * 365)
+            data = ticker_obj.history(start=str(computed_start), auto_adjust=True)
         else:
             data = ticker_obj.history(period=period, auto_adjust=True)
         if data.empty:

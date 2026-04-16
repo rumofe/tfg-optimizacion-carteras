@@ -60,8 +60,20 @@ export function updatePortfolio(id: number, nombre: string, pesos: Record<string
   return api.put(`/portfolio/${id}`, { nombre_estrategia: nombre, pesos });
 }
 
-export function runBacktest(tickers: string[], pesos: Record<string, number>, periodo: string) {
-  return api.post<BacktestResult>('/backtesting/run', { tickers, pesos, periodo });
+export function runBacktest(
+  tickers: string[],
+  pesos: Record<string, number>,
+  periodo: string,
+  fecha_inicio?: string,
+  fecha_fin?: string,
+) {
+  return api.post<BacktestResult>('/backtesting/run', {
+    tickers,
+    pesos,
+    periodo,
+    ...(fecha_inicio ? { fecha_inicio } : {}),
+    ...(fecha_fin   ? { fecha_fin }   : {}),
+  });
 }
 
 export function getTickerInfo(ticker: string) {
