@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -9,6 +10,35 @@ import { COLORS, CARD } from '../styles';
 
 interface SectorData { sector: string; peso: number; }
 interface PaisData   { pais:   string; peso: number; }
+
+// ─── Mapa geográfico ──────────────────────────────────────────────────────────
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+
+/** Mapea el nombre de país que devuelve yfinance al código ISO 3166-1 numérico
+ *  usado por world-atlas/topojson. */
+const PAIS_A_ISO: Record<string, string> = {
+  'United States': '840', 'Germany': '276', 'France': '250',
+  'United Kingdom': '826', 'Japan': '392', 'China': '156',
+  'Switzerland': '756', 'Netherlands': '528', 'Sweden': '752',
+  'Denmark': '208', 'Norway': '578', 'Finland': '246',
+  'Ireland': '372', 'Italy': '380', 'Spain': '724',
+  'Belgium': '56',  'Austria': '40',  'Canada': '124',
+  'Australia': '36', 'South Korea': '410', 'Taiwan': '158',
+  'India': '356', 'Brazil': '76',  'Mexico': '484',
+  'Singapore': '702', 'Israel': '376', 'Luxembourg': '442',
+  'Portugal': '620', 'Greece': '300', 'Poland': '616',
+  'Czech Republic': '203', 'Hungary': '348', 'Russia': '643',
+  'South Africa': '710', 'New Zealand': '554', 'Indonesia': '360',
+  'Thailand': '764', 'Malaysia': '458', 'Philippines': '608',
+  'Saudi Arabia': '682', 'United Arab Emirates': '784', 'Turkey': '792',
+  'Argentina': '32', 'Chile': '152', 'Colombia': '170',
+};
+
+function mapColor(pct: number, maxPct: number): string {
+  const t = Math.min(pct / maxPct, 1);
+  const alpha = 0.2 + t * 0.75;
+  return `rgba(79, 134, 247, ${alpha.toFixed(2)})`;
+}
 
 // ─── Style Box ────────────────────────────────────────────────────────────────
 const CAPS_BOX    = ['Large Cap', 'Mid Cap', 'Small Cap'] as const;
@@ -90,6 +120,7 @@ export default function XRayPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
+  const [mapTooltip, setMapTooltip] = useState<{ name: string; pct: number; x: number; y: number } | null>(null);
 
   async function cargarCarteras() {
     setLoading(true);
@@ -386,6 +417,62 @@ export default function XRayPage() {
                         <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>
                           Exposición geográfica
                         </div>
+
+                        {/* ── Mapa choropleth ── */}
+                        {(() => {
+                          const pesosPorIso: Record<string, number> = {};
+                          paises.forEach(({ pais, peso }) => {
+                            const iso = PAIS_A_ISO[pais];
+                            if (iso) pesosPorIso[iso] = peso;
+                          });
+                          const maxPaisoPeso = Math.max(...paises.map(p2 => p2.peso), 0.01);
+                          return (
+                            <div style={{ position: 'relative', marginBottom: '20px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg)' }}>
+                              <ComposableMap
+                                projection="geoNaturalEarth1"
+                                projectionConfig={{ scale: 145, center: [10, 10] }}
+                                width={800} height={360}
+                                style={{ width: '100%', height: 'auto', display: 'block' }}
+                              >
+                                <Geographies geography={GEO_URL}>
+                                  {({ geographies }) =>
+                                    geographies.map(geo => {
+                                      const iso = String(geo.id);
+                                      const pct = pesosPorIso[iso] ?? 0;
+                                      const hasData = pct > 0;
+                                      return (
+                                        <Geography
+                                          key={geo.rsmKey}
+                                          geography={geo}
+                                          fill={hasData ? mapColor(pct, maxPaisoPeso) : 'var(--raised)'}
+                                          stroke="var(--border)"
+                                          strokeWidth={0.4}
+                                          style={{
+                                            default:  { outline: 'none' },
+                                            hover:    { outline: 'none', fill: hasData ? mapColor(Math.min(pct * 1.3, maxPaisoPeso), maxPaisoPeso) : 'var(--border)', cursor: hasData ? 'pointer' : 'default' },
+                                            pressed:  { outline: 'none' },
+                                          }}
+                                          onMouseMove={(e: React.MouseEvent) => {
+                                            if (hasData) setMapTooltip({ name: geo.properties.name, pct, x: e.clientX + 12, y: e.clientY - 36 });
+                                          }}
+                                          onMouseLeave={() => setMapTooltip(null)}
+                                        />
+                                      );
+                                    })
+                                  }
+                                </Geographies>
+                              </ComposableMap>
+                              {/* Leyenda de escala */}
+                              <div style={{ position: 'absolute', bottom: '10px', right: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: 'var(--text-2)', fontSize: '9px' }}>0%</span>
+                                <div style={{ width: '70px', height: '7px', borderRadius: '4px', background: 'linear-gradient(to right, rgba(79,134,247,0.2), rgba(79,134,247,0.95))' }} />
+                                <span style={{ color: 'var(--text-2)', fontSize: '9px' }}>{maxPaisoPeso.toFixed(0)}%</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Barras + lista */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', alignItems: 'start' }}>
                           <ResponsiveContainer width="100%" height={Math.max(160, paises.length * 34)}>
                             <BarChart data={paises} layout="vertical" margin={{ left: 10, right: 20, top: 4, bottom: 4 }}>
@@ -527,6 +614,26 @@ export default function XRayPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Tooltip del mapa */}
+      {mapTooltip && (
+        <div style={{
+          position: 'fixed',
+          left: mapTooltip.x,
+          top: mapTooltip.y,
+          backgroundColor: 'var(--raised)',
+          border: '1px solid var(--border)',
+          borderRadius: '8px',
+          padding: '7px 12px',
+          fontSize: '12px',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+        }}>
+          <div style={{ color: 'var(--text)', fontWeight: 600 }}>{mapTooltip.name}</div>
+          <div style={{ color: 'var(--accent)', fontWeight: 700, marginTop: '2px' }}>{mapTooltip.pct.toFixed(1)}%</div>
         </div>
       )}
 
