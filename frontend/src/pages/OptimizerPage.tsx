@@ -3,12 +3,43 @@ import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
 } from 'recharts';
-import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult } from '../services/api';
+import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult, ParetoPoint } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
 import SliderInput from '../components/SliderInput';
 import { COLORS, CARD, INPUT, LABEL } from '../styles';
 
 function pct(n: number) { return `${(n * 100).toFixed(2)}%`; }
+
+// ── Pareto helpers ────────────────────────────────────────────────────────────
+function paretoColor(theta: number): string {
+  // Degradado continuo: morado (#7c3aed) → azul accent (#4f86f7)
+  const r = Math.round(124 - 45 * theta);
+  const g = Math.round(58  + 76 * theta);
+  const b = Math.round(237 + 10 * theta);
+  return `rgb(${r},${g},${b})`;
+}
+
+function PuntoParetoShape(props: any) {
+  const { cx, cy, payload } = props;
+  if (cx == null || cy == null) return null;
+  return <circle cx={cx} cy={cy} r={5} fill={paretoColor(payload?.theta ?? 0.5)} opacity={0.88} />;
+}
+
+function ParetoTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const d: ParetoPoint = payload[0]?.payload;
+  if (!d) return null;
+  const tipo = d.theta > 0.65 ? 'Orientado a Sharpe' : d.theta < 0.35 ? 'Orientado a Sortino' : 'Equilibrado';
+  return (
+    <div style={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px' }}>
+      <div style={{ color: paretoColor(d.theta), fontWeight: 700, marginBottom: '6px' }}>{tipo} (θ={d.theta.toFixed(2)})</div>
+      <div style={{ color: 'var(--text-2)' }}>Sharpe   <strong style={{ color: 'var(--accent)' }}>{d.sharpe.toFixed(3)}</strong></div>
+      <div style={{ color: 'var(--text-2)' }}>Sortino  <strong style={{ color: 'var(--purple)' }}>{d.sortino.toFixed(3)}</strong></div>
+      <div style={{ color: 'var(--text-2)' }}>Volatilidad <strong style={{ color: 'var(--amber)' }}>{d.volatilidad.toFixed(1)}%</strong></div>
+      <div style={{ color: 'var(--text-2)' }}>Retorno  <strong style={{ color: 'var(--green)' }}>{d.retorno.toFixed(1)}%</strong></div>
+    </div>
+  );
+}
 
 function FronteraTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
@@ -278,6 +309,62 @@ export default function OptimizerPage() {
               </div>
             </div>
           )}
+
+          {/* Frontera de Pareto */}
+          {result.pareto && result.pareto.length > 0 && (() => {
+            const maxSharpePoint = result.pareto.reduce((a, b) => a.sharpe > b.sharpe ? a : b);
+            return (
+              <div style={{ ...CARD, marginBottom: '24px' }}>
+                <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Frontera de Pareto — Sharpe vs. Sortino
+                </h3>
+                <p style={{ color: 'var(--text-2)', fontSize: '12px', margin: '0 0 20px' }}>
+                  Cada punto es un portfolio óptimo para una combinación distinta de objetivos. Ningún punto puede mejorar Sharpe y Sortino simultáneamente — eso es la frontera de Pareto. La estrella marca el portfolio seleccionado (máximo Sharpe).
+                </p>
+                <ResponsiveContainer width="100%" height={320}>
+                  <ScatterChart margin={{ top: 10, right: 20, bottom: 28, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      dataKey="sharpe" type="number" name="Sharpe"
+                      stroke="var(--border)" tick={{ fill: 'var(--text-2)', fontSize: 11 }}
+                      label={{ value: 'Sharpe Ratio', position: 'insideBottom', offset: -16, fill: 'var(--text-2)', fontSize: 11 }}
+                      domain={['auto', 'auto']}
+                    />
+                    <YAxis
+                      dataKey="sortino" type="number" name="Sortino"
+                      stroke="var(--border)" tick={{ fill: 'var(--text-2)', fontSize: 11 }}
+                      label={{ value: 'Sortino Ratio', angle: -90, position: 'insideLeft', fill: 'var(--text-2)', fontSize: 11 }}
+                      domain={['auto', 'auto']} width={60}
+                    />
+                    <ZAxis range={[44, 44]} />
+                    <Tooltip content={<ParetoTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                    <Scatter
+                      name="Frontera de Pareto"
+                      data={result.pareto}
+                      shape={<PuntoParetoShape />}
+                      line={{ stroke: 'rgba(150,150,200,0.25)', strokeWidth: 1 }}
+                      lineType="joint"
+                    />
+                    <ReferenceDot
+                      x={maxSharpePoint.sharpe} y={maxSharpePoint.sortino}
+                      r={9} fill="var(--red)" stroke="#fff" strokeWidth={2}
+                      label={{ value: '★ Óptimo', fill: 'var(--red)', fontSize: 11, dy: -15 }}
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+                {/* Leyenda del gradiente */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>Foco del portfolio:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '80px', height: '6px', borderRadius: '3px', background: `linear-gradient(to right, ${paretoColor(0)}, ${paretoColor(1)})` }} />
+                  </div>
+                  <span style={{ fontSize: '11px', color: paretoColor(0) }}>← Sortino puro</span>
+                  <span style={{ fontSize: '11px', color: paretoColor(1) }}>Sharpe puro →</span>
+                  <span style={{ fontSize: '11px', color: 'var(--red)', marginLeft: '12px' }}>★ Portfolio seleccionado</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Guardar */}
           {saveMsg && (

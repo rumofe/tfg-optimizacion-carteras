@@ -51,6 +51,91 @@ class MarkowitzOptimizer:
         # Fallback analítico si falla: equiponderado
         return np.ones(n) / n
 
+    def _portfolio_sortino(self, weights: np.ndarray, mean_returns: np.ndarray) -> float:
+        """
+        Ratio de Sortino: penaliza solo la volatilidad bajista (retornos < 0).
+        A diferencia del Sharpe, no penaliza las subidas.
+        """
+        port_ret_daily = self.returns.values @ weights
+        ann_return = float(np.dot(weights, mean_returns))
+        negatives = port_ret_daily[port_ret_daily < 0]
+        if len(negatives) < 2:
+            return 0.0
+        downside_vol = float(np.std(negatives, ddof=1) * np.sqrt(252))
+        if downside_vol < 1e-10:
+            return 0.0
+        return (ann_return - RISK_FREE_RATE) / downside_vol
+
+    def frontera_pareto(self, n_puntos: int = 20) -> list[dict]:
+        """
+        Aproxima la frontera de Pareto en el espacio (Sharpe, Sortino).
+
+        Idea: para θ ∈ [0,1] se maximiza la función escalarizada
+            θ · Sharpe(w) + (1-θ) · Sortino(w)
+
+        θ=1 → prioriza únicamente Sharpe (igual que el optimizador clásico).
+        θ=0 → prioriza únicamente Sortino (solo castiga el riesgo bajista).
+        θ intermedio → solución de compromiso en el frente de Pareto.
+
+        Tras obtener los candidatos se filtran los dominados para devolver
+        solo los portfolios que son inalcanzables en ambas métricas a la vez.
+        """
+        n = len(self.tickers)
+        cov_matrix = self.calcular_matriz_covarianza().values
+        mean_returns = self.returns.mean().values * 252
+        bounds = [(0.0, 1.0)] * n
+        constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+        rng = np.random.default_rng(42)
+
+        candidatos: list[dict] = []
+        for theta in np.linspace(0.0, 1.0, n_puntos):
+            def objetivo(w: np.ndarray, t: float = float(theta)) -> float:
+                vol = self._portfolio_vol(w, cov_matrix)
+                ann_ret = float(np.dot(w, mean_returns))
+                sharpe  = (ann_ret - RISK_FREE_RATE) / vol if vol > 1e-10 else 0.0
+                sortino = self._portfolio_sortino(w, mean_returns)
+                return -(t * sharpe + (1.0 - t) * sortino)
+
+            starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(5)]
+            best = None
+            for w0 in starts:
+                try:
+                    res = minimize(
+                        objetivo, w0, method="SLSQP",
+                        bounds=bounds, constraints=constraints,
+                        options={"ftol": 1e-9, "maxiter": 500},
+                    )
+                    if res.success and (best is None or res.fun < best.fun):
+                        best = res
+                except Exception:
+                    continue
+
+            if best is not None:
+                w = best.x
+                vol     = self._portfolio_vol(w, cov_matrix)
+                ann_ret = float(np.dot(w, mean_returns))
+                sharpe  = (ann_ret - RISK_FREE_RATE) / vol if vol > 1e-10 else 0.0
+                sortino = self._portfolio_sortino(w, mean_returns)
+                candidatos.append({
+                    "theta":       round(float(theta), 3),
+                    "sharpe":      round(float(sharpe), 4),
+                    "sortino":     round(float(sortino), 4),
+                    "volatilidad": round(float(vol * 100), 3),
+                    "retorno":     round(float(ann_ret * 100), 3),
+                })
+
+        # Filtrar dominados: un punto P es dominado si existe Q con
+        # Q.sharpe >= P.sharpe AND Q.sortino >= P.sortino (al menos uno estricto)
+        def dominado(p: dict, todos: list[dict]) -> bool:
+            return any(
+                q["sharpe"] >= p["sharpe"] and q["sortino"] >= p["sortino"]
+                and (q["sharpe"] > p["sharpe"] or q["sortino"] > p["sortino"])
+                for q in todos if q is not p
+            )
+
+        pareto = [p for p in candidatos if not dominado(p, candidatos)]
+        return sorted(pareto, key=lambda x: x["sharpe"])
+
     def calcular_frontera(self, n_puntos: int = 50) -> list[dict]:
         """
         Calcula la Frontera Eficiente de Markowitz: para cada nivel de retorno
@@ -181,4 +266,5 @@ class MarkowitzOptimizer:
             "sharpe_ratio": float(sharpe),
             "activos_info": activos_info,
             "frontera": self.calcular_frontera(),
+            "pareto": self.frontera_pareto(),
         }
