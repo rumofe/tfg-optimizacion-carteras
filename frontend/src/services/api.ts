@@ -100,6 +100,14 @@ export interface FronteraPunto {
   sharpe: number;
 }
 
+export interface ParetoPoint {
+  theta:       number;   // 0 = puro Sortino, 1 = puro Sharpe
+  sharpe:      number;
+  sortino:     number;
+  volatilidad: number;
+  retorno:     number;
+}
+
 export interface ActivoInfo {
   retorno_anualizado: number;
   volatilidad_anualizada: number;
@@ -112,6 +120,7 @@ export interface OptimizeResult {
   sharpe_ratio: number;
   activos_info: Record<string, ActivoInfo>;
   frontera: FronteraPunto[];
+  pareto: ParetoPoint[];
 }
 
 export interface Portfolio {
