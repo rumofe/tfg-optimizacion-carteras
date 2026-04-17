@@ -61,7 +61,7 @@ function FronteraTooltip({ active, payload }: any) {
 export default function OptimizerPage() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [capital, setCapital] = useState(10000);
-  const [maxVol, setMaxVol] = useState(20);
+  const [maxVol, setMaxVol] = useState(25);
 
   // Pre-rellenar capital y volatilidad máxima desde el perfil del inversor
   useEffect(() => {
@@ -160,16 +160,49 @@ export default function OptimizerPage() {
             formatMin="€ 500"
             formatMax="€ 500 K"
           />
-          <SliderInput
-            label="Volatilidad máxima"
-            value={maxVol}
-            onChange={setMaxVol}
-            min={1} max={50} step={0.5}
-            suffix="%"
-            formatDisplay={(v) => v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}
-            formatMin="1%"
-            formatMax="50%"
-          />
+          <div>
+            <SliderInput
+              label="Volatilidad máxima"
+              value={maxVol}
+              onChange={setMaxVol}
+              min={10} max={60} step={1}
+              suffix="%"
+              formatDisplay={(v) => v.toFixed(0)}
+              formatMin="10%"
+              formatMax="60%"
+            />
+            {/* Presets */}
+            <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+              {[
+                { label: 'Conservador', vol: 15, color: 'var(--green)'  },
+                { label: 'Moderado',    vol: 25, color: 'var(--accent)' },
+                { label: 'Agresivo',    vol: 40, color: 'var(--amber)'  },
+                { label: 'Sin límite',  vol: 55, color: 'var(--red)'    },
+              ].map(({ label, vol, color }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setMaxVol(vol)}
+                  style={{
+                    padding: '3px 10px',
+                    backgroundColor: maxVol === vol ? color : 'var(--raised)',
+                    color: maxVol === vol ? '#fff' : 'var(--text-2)',
+                    border: `1px solid ${maxVol === vol ? color : 'var(--border)'}`,
+                    borderRadius: '20px',
+                    fontSize: '11px',
+                    fontWeight: maxVol === vol ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {label} {vol}%
+                </button>
+              ))}
+            </div>
+            <p style={{ color: 'var(--text-2)', fontSize: '10px', margin: '6px 0 0' }}>
+              Referencia: S&P 500 ≈ 15–18 % anual · acciones individuales 25–40 %
+            </p>
+          </div>
         </div>
 
         {error && (

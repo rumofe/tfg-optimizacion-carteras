@@ -3,9 +3,9 @@ import { getProfile, updateProfile, UserProfile } from '../services/api';
 import { CARD, LABEL, INPUT } from '../styles';
 
 const PERFILES = [
-  { id: 'conservador',   label: 'Conservador',   vol: 8,    desc: 'Preservación de capital · ≤ 8 % vol.' },
-  { id: 'moderado',      label: 'Moderado',       vol: 15,   desc: 'Equilibrio riesgo-rentabilidad · ≤ 15 % vol.' },
-  { id: 'agresivo',      label: 'Agresivo',       vol: 25,   desc: 'Máxima rentabilidad · ≤ 25 % vol.' },
+  { id: 'conservador',   label: 'Conservador',   vol: 15,   desc: 'Baja exposición al riesgo · ≤ 15 % vol. (p. ej. mix renta fija + defensivos)' },
+  { id: 'moderado',      label: 'Moderado',       vol: 25,   desc: 'Equilibrio riesgo-rentabilidad · ≤ 25 % vol. (rango S&P 500 histórico)' },
+  { id: 'agresivo',      label: 'Agresivo',       vol: 40,   desc: 'Alta exposición a renta variable · ≤ 40 % vol. (acciones growth / concentrado)' },
   { id: 'personalizado', label: 'Personalizado',  vol: null, desc: 'Define tu propio límite de volatilidad' },
 ] as const;
 
@@ -19,9 +19,9 @@ const ACCENT_COLORS: Record<PerfilId, string> = {
 };
 
 function inferPerfil(vol: number | null): PerfilId {
-  if (vol === 8)  return 'conservador';
-  if (vol === 15) return 'moderado';
-  if (vol === 25) return 'agresivo';
+  if (vol === 15) return 'conservador';
+  if (vol === 25) return 'moderado';
+  if (vol === 40) return 'agresivo';
   return 'personalizado';
 }
 
@@ -29,7 +29,7 @@ export default function ProfilePage() {
   const [profile, setProfile]           = useState<UserProfile | null>(null);
   const [capital, setCapital]           = useState<string>('');
   const [perfilId, setPerfilId]         = useState<PerfilId>('moderado');
-  const [volPersonal, setVolPersonal]   = useState<string>('15');
+  const [volPersonal, setVolPersonal]   = useState<string>('25');
   const [loading, setLoading]           = useState(true);
   const [saving, setSaving]             = useState(false);
   const [msg, setMsg]                   = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
