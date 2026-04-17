@@ -175,6 +175,10 @@ export interface TickerInfo {
   pais: string;
   tipo: string;
   moneda: string;
+  market_cap: number | null;
+  market_cap_categoria: 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Desconocido';
+  estilo_inversion: 'Value' | 'Blend' | 'Growth' | 'Desconocido';
+  tipo_accion: 'Cyclical' | 'Sensitive' | 'Defensive' | 'Desconocido';
 }
 
 export default api;

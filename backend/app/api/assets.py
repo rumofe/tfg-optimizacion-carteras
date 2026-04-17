@@ -12,6 +12,53 @@ router = APIRouter(prefix="/assets", tags=["assets"])
 
 _connector = MarketDataConnector()
 
+# ─── Clasificación Morningstar ────────────────────────────────────────────────
+_SECTOR_TO_TYPE: dict[str, str] = {
+    "Basic Materials":        "Cyclical",
+    "Consumer Cyclical":      "Cyclical",
+    "Financial Services":     "Cyclical",
+    "Real Estate":            "Cyclical",
+    "Communication Services": "Sensitive",
+    "Energy":                 "Sensitive",
+    "Industrials":            "Sensitive",
+    "Technology":             "Sensitive",
+    "Consumer Defensive":     "Defensive",
+    "Healthcare":             "Defensive",
+    "Utilities":              "Defensive",
+}
+
+
+def _market_cap_cat(mc: float | None) -> str:
+    if not mc:
+        return "Desconocido"
+    if mc >= 10_000_000_000:
+        return "Large Cap"
+    if mc >= 2_000_000_000:
+        return "Mid Cap"
+    return "Small Cap"
+
+
+def _estilo_inversion(pe: float | None, pb: float | None) -> str:
+    """Value/Blend/Growth basado en ratios P/E y P/B (método simplificado Morningstar)."""
+    if pe is None and pb is None:
+        return "Desconocido"
+    score = 0
+    if pe and pe > 0:
+        if pe < 15:
+            score -= 1
+        elif pe > 25:
+            score += 1
+    if pb and pb > 0:
+        if pb < 2:
+            score -= 1
+        elif pb > 4:
+            score += 1
+    if score <= -1:
+        return "Value"
+    if score >= 1:
+        return "Growth"
+    return "Blend"
+
 
 @router.get("/search")
 def search_assets(q: str = Query(..., min_length=1, description="Texto a buscar: ticker o nombre de empresa")):
@@ -91,12 +138,19 @@ def get_info(ticker: str):
             detail=f"No se encontró información para el ticker '{ticker_upper}'",
         )
 
+    market_cap  = info.get("marketCap")
+    sector_str  = info.get("sector") or ""
+
     return {
-        "ticker": ticker_upper,
-        "nombre": info.get("longName") or info.get("shortName") or ticker_upper,
-        "sector": info.get("sector") or info.get("fundFamily") or "Desconocido",
-        "industria": info.get("industry") or info.get("category") or "Desconocido",
-        "pais": info.get("country") or "Desconocido",
-        "tipo": info.get("quoteType", "Desconocido"),
-        "moneda": info.get("currency", "USD"),
+        "ticker":              ticker_upper,
+        "nombre":              info.get("longName") or info.get("shortName") or ticker_upper,
+        "sector":              sector_str or info.get("fundFamily") or "Desconocido",
+        "industria":           info.get("industry") or info.get("category") or "Desconocido",
+        "pais":                info.get("country") or "Desconocido",
+        "tipo":                info.get("quoteType", "Desconocido"),
+        "moneda":              info.get("currency", "USD"),
+        "market_cap":          market_cap,
+        "market_cap_categoria": _market_cap_cat(market_cap),
+        "estilo_inversion":    _estilo_inversion(info.get("trailingPE"), info.get("priceToBook")),
+        "tipo_accion":         _SECTOR_TO_TYPE.get(sector_str, "Desconocido"),
     }
