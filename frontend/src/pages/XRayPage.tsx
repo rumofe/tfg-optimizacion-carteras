@@ -10,6 +10,56 @@ import { COLORS, CARD } from '../styles';
 interface SectorData { sector: string; peso: number; }
 interface PaisData   { pais:   string; peso: number; }
 
+// ─── Style Box ────────────────────────────────────────────────────────────────
+const CAPS_BOX    = ['Large Cap', 'Mid Cap', 'Small Cap'] as const;
+const STYLES_BOX  = ['Value', 'Blend', 'Growth'] as const;
+const CAP_LABELS: Record<string, string> = { 'Large Cap': 'LARGE', 'Mid Cap': 'MID', 'Small Cap': 'SMALL' };
+
+const TIPO_CONFIG: Record<string, { color: string; label: string; sectoresLabel: string }> = {
+  Cyclical:  { color: '#f97316', label: 'Cíclico',   sectoresLabel: 'Materials · Financials · Consumer Disc. · Real Estate' },
+  Sensitive: { color: '#f59e0b', label: 'Sensible',  sectoresLabel: 'Industrials · Tech · Energy · Communications' },
+  Defensive: { color: '#10b981', label: 'Defensivo', sectoresLabel: 'Healthcare · Utilities · Consumer Staples' },
+};
+
+function calcularStyleBox(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, Record<string, number>> {
+  const box: Record<string, Record<string, number>> = {};
+  for (const a of activos) {
+    const mc  = infos[a.ticker]?.market_cap_categoria;
+    const est = infos[a.ticker]?.estilo_inversion;
+    if (!mc || mc === 'Desconocido' || !est || est === 'Desconocido') continue;
+    if (!box[mc]) box[mc] = {};
+    box[mc][est] = (box[mc][est] ?? 0) + a.peso_asignado * 100;
+  }
+  return box;
+}
+
+function calcularMarketCapDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
+  const out: Record<string, number> = { 'Large Cap': 0, 'Mid Cap': 0, 'Small Cap': 0 };
+  for (const a of activos) {
+    const cat = infos[a.ticker]?.market_cap_categoria;
+    if (cat && cat !== 'Desconocido') out[cat] = (out[cat] ?? 0) + a.peso_asignado * 100;
+  }
+  return out;
+}
+
+function calcularEstiloDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
+  const out: Record<string, number> = { Value: 0, Blend: 0, Growth: 0 };
+  for (const a of activos) {
+    const est = infos[a.ticker]?.estilo_inversion;
+    if (est && est !== 'Desconocido') out[est] = (out[est] ?? 0) + a.peso_asignado * 100;
+  }
+  return out;
+}
+
+function calcularTipoAccionDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
+  const out: Record<string, number> = { Cyclical: 0, Sensitive: 0, Defensive: 0 };
+  for (const a of activos) {
+    const tipo = infos[a.ticker]?.tipo_accion;
+    if (tipo && tipo !== 'Desconocido') out[tipo] = (out[tipo] ?? 0) + a.peso_asignado * 100;
+  }
+  return out;
+}
+
 function calcularSectores(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): SectorData[] {
   const mapa: Record<string, number> = {};
   for (const a of activos) {
@@ -134,9 +184,16 @@ export default function XRayPage() {
               value: parseFloat((a.peso_asignado * 100).toFixed(2)),
             }));
 
-            const sectores = calcularSectores(p.activos, tickerInfos);
-            const paises   = calcularPaises(p.activos, tickerInfos);
-            const isExpanded = expandedId === p.id;
+            const sectores       = calcularSectores(p.activos, tickerInfos);
+            const paises         = calcularPaises(p.activos, tickerInfos);
+            const isExpanded     = expandedId === p.id;
+            const styleBox       = calcularStyleBox(p.activos, tickerInfos);
+            const marketCapDist  = calcularMarketCapDist(p.activos, tickerInfos);
+            const estiloDist     = calcularEstiloDist(p.activos, tickerInfos);
+            const tipoAccionDist = calcularTipoAccionDist(p.activos, tickerInfos);
+            const maxBoxValue    = Math.max(
+              ...CAPS_BOX.flatMap(c => STYLES_BOX.map(s => styleBox[c]?.[s] ?? 0)), 0.01
+            );
 
             return (
               <div key={p.id} style={CARD}>
@@ -358,6 +415,112 @@ export default function XRayPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* ── Style Box + Market Cap + Investment Style ── */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                      <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
+                        Style Box (capitalización × estilo)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px', alignItems: 'start' }}>
+
+                        {/* 3×3 grid */}
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '46px 1fr 1fr 1fr', gap: '4px' }}>
+                            <div />
+                            {STYLES_BOX.map(s => (
+                              <div key={`hdr-${s}`} style={{ textAlign: 'center', color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', paddingBottom: '4px' }}>{s}</div>
+                            ))}
+                            {CAPS_BOX.flatMap(cap => [
+                              <div key={`lbl-${cap}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '6px', color: 'var(--text-2)', fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                {CAP_LABELS[cap]}
+                              </div>,
+                              ...STYLES_BOX.map(est => {
+                                const w = styleBox[cap]?.[est] ?? 0;
+                                const alpha = 0.08 + (w / maxBoxValue) * 0.82;
+                                const isMax = w === maxBoxValue && w > 0.05;
+                                return (
+                                  <div key={`${cap}-${est}`} style={{
+                                    borderRadius: '5px', padding: '10px 4px', textAlign: 'center',
+                                    backgroundColor: `rgba(79, 134, 247, ${alpha})`,
+                                    color: alpha > 0.45 ? '#fff' : 'var(--text)',
+                                    fontSize: '12px', fontWeight: isMax ? 700 : 500,
+                                    minHeight: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    outline: isMax ? '2px solid var(--accent)' : 'none', outlineOffset: '1px',
+                                  }}>
+                                    {w > 0.05 ? `${w.toFixed(1)}%` : '—'}
+                                  </div>
+                                );
+                              }),
+                            ])}
+                          </div>
+                          <div style={{ color: 'var(--text-2)', fontSize: '10px', marginTop: '8px', fontStyle: 'italic', textAlign: 'center' }}>
+                            P/E {'<'} 15 → Value · P/E {'>'} 25 → Growth · Large {'>'} $10B, Mid $2B–$10B
+                          </div>
+                        </div>
+
+                        {/* Barras Market Cap + Estilo */}
+                        <div>
+                          <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '10px' }}>Por capitalización</div>
+                          {CAPS_BOX.map((cat, i) => {
+                            const pct = marketCapDist[cat] ?? 0;
+                            return (
+                              <div key={cat} style={{ marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                  <span style={{ color: 'var(--text)', fontSize: '12px' }}>{cat}</span>
+                                  <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                                </div>
+                                <div style={{ height: '7px', backgroundColor: 'var(--raised)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length], borderRadius: '4px' }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', margin: '16px 0 10px' }}>Por estilo de inversión</div>
+                          {STYLES_BOX.map((est, i) => {
+                            const pct = estiloDist[est] ?? 0;
+                            const estColors = ['#10b981', 'var(--accent)', 'var(--purple)'];
+                            return (
+                              <div key={est} style={{ marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                  <span style={{ color: 'var(--text)', fontSize: '12px' }}>{est}</span>
+                                  <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                                </div>
+                                <div style={{ height: '7px', backgroundColor: 'var(--raised)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: estColors[i], borderRadius: '4px' }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Clasificación por tipo de activo ── */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                      <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
+                        Clasificación por tipo de activo
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                        {(['Cyclical', 'Sensitive', 'Defensive'] as const).map((tipo) => {
+                          const cfg = TIPO_CONFIG[tipo];
+                          const pct = tipoAccionDist[tipo] ?? 0;
+                          return (
+                            <div key={tipo} style={{ ...CARD, padding: '18px 20px', borderTop: `3px solid ${cfg.color}` }}>
+                              <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
+                                {cfg.label}
+                              </div>
+                              <div style={{ color: cfg.color, fontSize: '28px', fontWeight: 700, marginBottom: '8px' }}>
+                                {pct.toFixed(1)}%
+                              </div>
+                              <div style={{ color: 'var(--text-2)', fontSize: '10px', lineHeight: 1.5 }}>
+                                {cfg.sectoresLabel}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                   </div>
                 )}
