@@ -79,38 +79,111 @@ class BacktestEngine:
     ):
         connector = MarketDataConnector()
 
-        precios: dict[str, pd.Series] = {}
+        precios_total: dict[str, pd.Series] = {}
+        precios_solo: dict[str, pd.Series] = {}
+        dividendos: dict[str, pd.Series] = {}
         for ticker in tickers:
-            df = connector.get_historical_prices(ticker, periodo, fecha_inicio, fecha_fin)
-            precios[ticker] = df.set_index("fecha")["valor_liquidativo"]
+            df_full = connector.get_historical_full(ticker, periodo, fecha_inicio, fecha_fin)
+            df_full = df_full.set_index("fecha")
+            precios_total[ticker] = df_full["precio_total_return"]
+            precios_solo[ticker]  = df_full["precio"]
+            dividendos[ticker]    = df_full["dividendo"]
 
         df_spy = connector.get_historical_prices("SPY", periodo, fecha_inicio, fecha_fin)
-        precios["SPY"] = df_spy.set_index("fecha")["valor_liquidativo"]
+        precios_total["SPY"] = df_spy.set_index("fecha")["valor_liquidativo"]
 
-        price_df = pd.DataFrame(precios).dropna()
+        price_df = pd.DataFrame(precios_total).dropna()
         price_df.index = pd.to_datetime(price_df.index)
         price_df = price_df.sort_index()
 
+        price_only_df = pd.DataFrame(precios_solo).dropna()
+        price_only_df.index = pd.to_datetime(price_only_df.index)
+        price_only_df = price_only_df.sort_index()
+
+        div_df = pd.DataFrame(dividendos).fillna(0.0)
+        div_df.index = pd.to_datetime(div_df.index)
+        div_df = div_df.sort_index()
+
         self.tickers = tickers
         self.pesos = pesos
-        self.price_df = price_df
+        self.price_df = price_df             # total return (incluye dividendos reinvertidos)
+        self.price_only_df = price_only_df   # solo precio (sin dividendos)
+        self.div_df = div_df                 # dividendos brutos pagados por acción
 
-    def _cartera_precio_serie(self) -> pd.Series:
-        """Construye la serie de precio de la cartera normalizando a base 100."""
-        retornos = self.price_df[self.tickers].pct_change().dropna()
+    def _serie_cartera(self, df: pd.DataFrame) -> pd.Series:
+        """Construye serie indexada por fecha base 100 a partir de un DataFrame de precios."""
+        retornos = df[self.tickers].pct_change().dropna()
         retorno_cartera = sum(
             retornos[t] * self.pesos.get(t, 0.0) for t in self.tickers
         )
-        precio_cartera = (1 + retorno_cartera).cumprod() * 100
-        return precio_cartera
+        return (1 + retorno_cartera).cumprod() * 100
+
+    def _cartera_precio_serie(self) -> pd.Series:
+        """Serie de la cartera en total return (con dividendos reinvertidos)."""
+        return self._serie_cartera(self.price_df)
+
+    def _cartera_precio_solo_serie(self) -> pd.Series:
+        """Serie de la cartera solo precio (sin dividendos)."""
+        return self._serie_cartera(self.price_only_df)
+
+    def _calcular_dividendos(self) -> dict:
+        """
+        Calcula la contribución de los dividendos a la rentabilidad de la cartera
+        e ingresos anuales aproximados (€ por cada 100€ invertidos en t=0).
+        """
+        # Para cada ticker, dividendos relativos al precio inicial de su período
+        if self.price_only_df.empty:
+            return {
+                "ingresos_anuales": [],
+                "yield_promedio_anual": 0.0,
+                "ingresos_totales": 0.0,
+            }
+
+        precio_inicial = self.price_only_df.iloc[0]
+        # dividendos por euro invertido en t=0, por ticker
+        div_por_euro = self.div_df.divide(precio_inicial, axis=1).fillna(0.0)
+
+        # Suma ponderada por pesos → dividendos por euro invertido en cartera (en %)
+        peso_serie = pd.Series(self.pesos)
+        div_cartera = div_por_euro[self.tickers].multiply(peso_serie, axis=1).sum(axis=1)
+        # Convertir a € por cada 100€ invertidos
+        div_cartera_por_100 = div_cartera * 100
+
+        # Agrupar por año
+        div_anuales = div_cartera_por_100.groupby(div_cartera_por_100.index.year).sum()
+        ingresos_anuales = [
+            {"año": int(año), "importe_por_100": round(float(imp), 4)}
+            for año, imp in div_anuales.items()
+            if imp > 0
+        ]
+
+        ingresos_totales = float(div_cartera_por_100.sum())
+        # Yield promedio anual = ingresos totales / nº años
+        n_dias = len(self.price_only_df)
+        n_años = max(n_dias / 252.0, 1.0)
+        yield_promedio = ingresos_totales / n_años  # ya en € por 100€ ⇒ es %
+
+        return {
+            "ingresos_anuales": ingresos_anuales,
+            "yield_promedio_anual": round(yield_promedio, 4),
+            "ingresos_totales": round(ingresos_totales, 4),
+        }
 
     def ejecutar(self) -> dict:
         precio_cartera = self._cartera_precio_serie()
+        precio_cartera_solo = self._cartera_precio_solo_serie()
         precio_spy = self.price_df["SPY"].loc[precio_cartera.index]
         precio_spy_norm = precio_spy / precio_spy.iloc[0] * 100
 
         metricas = _calcular_metricas(precio_cartera, benchmark_serie=precio_spy_norm)
         benchmark = _calcular_metricas(precio_spy_norm)
+
+        # Descomposición precio vs dividendos
+        rent_total  = metricas["rentabilidad_acumulada"]  # ya en %
+        rent_precio_acum = float((precio_cartera_solo.iloc[-1] / precio_cartera_solo.iloc[0]) - 1) * 100
+        rent_dividendos  = round(rent_total - rent_precio_acum, 4)
+
+        info_dividendos = self._calcular_dividendos()
 
         serie_temporal = [
             {
@@ -135,6 +208,12 @@ class BacktestEngine:
             "benchmark_rentabilidad": benchmark["rentabilidad_acumulada"],
             "benchmark_retorno_anualizado": benchmark["retorno_anualizado"],
             "serie_temporal": serie_temporal,
+            "descomposicion": {
+                "rentabilidad_precio": round(rent_precio_acum, 4),
+                "rentabilidad_dividendos": rent_dividendos,
+                "rentabilidad_total": rent_total,
+            },
+            "dividendos": info_dividendos,
         }
 
     def analizar_crisis(self) -> dict:

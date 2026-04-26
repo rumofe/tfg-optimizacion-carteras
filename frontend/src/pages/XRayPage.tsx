@@ -81,6 +81,46 @@ function calcularEstiloDist(activos: Portfolio['activos'], infos: Record<string,
   return out;
 }
 
+interface DividendosCartera {
+  yieldPonderado: number;            // % anual de la cartera completa
+  topPagadores: { ticker: string; yield: number; peso: number; aporte: number }[];
+  frecuencias: Record<string, number>;  // peso% en cada categoría
+  pagadoresCount: number;            // cuántos activos pagan dividendo
+  totalActivos: number;
+}
+
+function calcularDividendosCartera(
+  activos: Portfolio['activos'],
+  infos: Record<string, TickerInfo>,
+): DividendosCartera {
+  let yieldPond = 0;
+  let pagadoresCount = 0;
+  const frecuencias: Record<string, number> = {};
+  const aportes: { ticker: string; yield: number; peso: number; aporte: number }[] = [];
+  for (const a of activos) {
+    const info = infos[a.ticker];
+    const y = info?.dividend_yield ?? 0;
+    if (y > 0) {
+      pagadoresCount++;
+      const aporte = y * a.peso_asignado;
+      yieldPond += aporte;
+      aportes.push({ ticker: a.ticker, yield: y, peso: a.peso_asignado * 100, aporte });
+      const freq = info?.payout_frequency ?? 'Desconocido';
+      if (freq !== 'Ninguno' && freq !== 'Desconocido') {
+        frecuencias[freq] = (frecuencias[freq] ?? 0) + a.peso_asignado * 100;
+      }
+    }
+  }
+  const topPagadores = aportes.sort((a, b) => b.aporte - a.aporte).slice(0, 3);
+  return {
+    yieldPonderado: yieldPond,
+    topPagadores,
+    frecuencias,
+    pagadoresCount,
+    totalActivos: activos.length,
+  };
+}
+
 function calcularTipoAccionDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
   const out: Record<string, number> = { Cyclical: 0, Sensitive: 0, Defensive: 0 };
   for (const a of activos) {
@@ -222,6 +262,7 @@ export default function XRayPage() {
             const marketCapDist  = calcularMarketCapDist(p.activos, tickerInfos);
             const estiloDist     = calcularEstiloDist(p.activos, tickerInfos);
             const tipoAccionDist = calcularTipoAccionDist(p.activos, tickerInfos);
+            const dividendos     = calcularDividendosCartera(p.activos, tickerInfos);
             const maxBoxValue    = Math.max(
               ...CAPS_BOX.flatMap(c => STYLES_BOX.map(s => styleBox[c]?.[s] ?? 0)), 0.01
             );
@@ -607,6 +648,89 @@ export default function XRayPage() {
                           );
                         })}
                       </div>
+                    </div>
+
+                    {/* ── Análisis de dividendos ── */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                      <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
+                        Dividendos
+                      </div>
+                      {dividendos.pagadoresCount === 0 ? (
+                        <div style={{ color: 'var(--text-3)', fontSize: '12px', fontStyle: 'italic', padding: '8px 0' }}>
+                          Ninguno de los activos de esta cartera paga dividendos.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          {/* Card: Yield ponderado + ingresos estimados */}
+                          <div style={{ ...CARD, padding: '18px 20px', borderLeft: '3px solid var(--green)' }}>
+                            <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '8px' }}>
+                              Yield ponderado de la cartera
+                            </div>
+                            <div style={{ color: 'var(--green)', fontSize: '32px', fontWeight: 700, lineHeight: 1, marginBottom: '10px' }}>
+                              {dividendos.yieldPonderado.toFixed(2)}%
+                              <span style={{ color: 'var(--text-3)', fontSize: '12px', fontWeight: 500, marginLeft: '6px' }}>anual</span>
+                            </div>
+                            <div style={{ color: 'var(--text-2)', fontSize: '12px', lineHeight: 1.5 }}>
+                              ≈ <strong style={{ color: 'var(--text)' }}>{(dividendos.yieldPonderado * 100).toFixed(0)} €</strong> anuales
+                              por cada <strong>10.000 €</strong> invertidos.
+                            </div>
+                            <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '8px' }}>
+                              {dividendos.pagadoresCount} de {dividendos.totalActivos} activos pagan dividendo
+                            </div>
+                            {/* Frecuencias */}
+                            {Object.keys(dividendos.frecuencias).length > 0 && (
+                              <div style={{ display: 'flex', gap: '6px', marginTop: '12px', flexWrap: 'wrap' }}>
+                                {Object.entries(dividendos.frecuencias)
+                                  .sort(([, a], [, b]) => b - a)
+                                  .map(([freq, pct]) => (
+                                    <span key={freq} style={{
+                                      padding: '2px 8px', fontSize: '10px',
+                                      backgroundColor: 'var(--raised)', color: 'var(--text-2)',
+                                      border: '1px solid var(--border)', borderRadius: '10px',
+                                    }}>
+                                      {freq} · {pct.toFixed(0)}%
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          </div>
+                          {/* Card: top pagadores */}
+                          <div style={{ ...CARD, padding: '18px 20px' }}>
+                            <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '12px' }}>
+                              Mayores contribuyentes al dividendo
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {dividendos.topPagadores.map((tp, i) => (
+                                <div key={tp.ticker} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <div style={{
+                                    width: '22px', height: '22px', borderRadius: '50%',
+                                    backgroundColor: 'var(--raised)', border: '1px solid var(--border)',
+                                    color: 'var(--text-2)', fontSize: '10px', fontWeight: 700,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}>{i + 1}</div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                                      <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, fontFamily: 'monospace' }}>{tp.ticker}</span>
+                                      <span style={{ color: 'var(--green)', fontSize: '12px', fontWeight: 700 }}>
+                                        {tp.yield.toFixed(2)}%
+                                      </span>
+                                    </div>
+                                    <div style={{ height: '4px', backgroundColor: 'var(--raised)', borderRadius: '2px', marginTop: '4px', overflow: 'hidden' }}>
+                                      <div style={{
+                                        width: `${(tp.aporte / Math.max(dividendos.yieldPonderado, 0.01)) * 100}%`,
+                                        height: '100%', backgroundColor: 'var(--green)',
+                                      }} />
+                                    </div>
+                                    <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px' }}>
+                                      Aporta {tp.aporte.toFixed(2)} pp · peso {tp.peso.toFixed(0)}%
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>

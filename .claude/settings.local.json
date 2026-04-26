@@ -25,7 +25,20 @@
       "Bash(python scripts/office/validate.py \"C:\\\\TFG\\\\tfg-optimizacion-carteras\\\\PortfolioLab_Resumen_Tecnico.docx\")",
       "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\('/c/TFG/tfg-optimizacion-carteras/PortfolioLab_Resumen_Tecnico.docx'\\); print\\('OK, ficheros:', len\\(z.namelist\\(\\)\\)\\)\")",
       "Bash(python -c \"import zipfile; z=zipfile.ZipFile\\('C:\\\\\\\\\\\\\\\\TFG\\\\\\\\\\\\\\\\tfg-optimizacion-carteras\\\\\\\\\\\\\\\\PortfolioLab_Resumen_Tecnico.docx'\\); print\\('OK, ficheros:', len\\(z.namelist\\(\\)\\)\\)\")",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Bash(node -e \"require\\('./node_modules/react-simple-maps/dist/index.js'\\); console.log\\('ok'\\)\")",
+      "Bash(node -e \"const m = require\\('./node_modules/react-simple-maps/dist/index.js'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(awk '{print $1}')",
+      "Bash(xargs ls *)",
+      "Bash(npm ls *)",
+      "Bash(venv/Scripts/python.exe -c ' *)",
+      "Bash(venv/Scripts/python.exe -m pytest -x -q)",
+      "Bash(psql -U postgres -h localhost -c \"SELECT rolname FROM pg_roles WHERE rolname IN \\('rumofe', 'postgres'\\);\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT 1;\")",
+      "Bash(PGPASSWORD=tfg_password \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT 1;\")",
+      "Bash(sc query *)",
+      "Bash(docker compose *)",
+      "Bash(PGPASSWORD=tfg_password \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT current_user, current_database\\(\\);\")"
     ]
   }
 }

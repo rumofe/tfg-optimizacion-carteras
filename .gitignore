@@ -33,3 +33,4 @@ Thumbs.db
 
 # Data sensible
 data/*.pdf
+.claude

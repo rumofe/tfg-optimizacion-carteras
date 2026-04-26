@@ -53,6 +53,52 @@ class MarketDataConnector:
         )
 
     def _from_yfinance(self, ticker: str, period: str, start: str | None = None, end: str | None = None) -> pd.DataFrame:
+        data = self._yf_history(ticker, period, start, end, auto_adjust=True)
+        df = data[["Close"]].reset_index()
+        df.columns = ["fecha", "valor_liquidativo"]
+        df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+        return df.dropna()
+
+    def get_historical_full(
+        self,
+        ticker: str,
+        period: str = "1y",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> pd.DataFrame:
+        """
+        Devuelve DataFrame con [fecha, precio, precio_total_return, dividendo].
+        - precio: ajustado por splits, NO por dividendos (price return puro).
+        - precio_total_return: ajustado por splits Y dividendos reinvertidos.
+        - dividendo: dividendo en bruto pagado ese día (0 si no hay).
+
+        Solo usa yfinance (Alpha Vantage no expone dividendos).
+        """
+        logger.info("Descargando precios+dividendos para %s (periodo %s, start=%s, end=%s)...", ticker, period, start, end)
+        data = self._yf_history(ticker, period, start, end, auto_adjust=False)
+        # Con auto_adjust=False: Close = split-adjusted, Adj Close = split+dividend adjusted
+        cols = ["Close", "Adj Close"]
+        if "Dividends" in data.columns:
+            cols.append("Dividends")
+        df = data[cols].reset_index()
+        rename = {"Close": "precio", "Adj Close": "precio_total_return", "Dividends": "dividendo"}
+        df = df.rename(columns=rename)
+        df = df.rename(columns={df.columns[0]: "fecha"})
+        df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+        if "dividendo" not in df.columns:
+            df["dividendo"] = 0.0
+        df["dividendo"] = df["dividendo"].fillna(0.0)
+        return df.dropna(subset=["precio", "precio_total_return"])
+
+    def _yf_history(
+        self,
+        ticker: str,
+        period: str,
+        start: str | None,
+        end: str | None,
+        auto_adjust: bool,
+    ) -> pd.DataFrame:
+        """Wrapper común para yfinance.history() con headers + manejo de periodos custom."""
         yf.set_tz_cache_location("/tmp")
         opener = urllib.request.build_opener()
         opener.addheaders = [
@@ -61,22 +107,18 @@ class MarketDataConnector:
         urllib.request.install_opener(opener)
         ticker_obj = yf.Ticker(ticker)
         if start:
-            # Rango de fechas personalizado
-            kwargs = {"start": start, "auto_adjust": True}
+            kwargs = {"start": start, "auto_adjust": auto_adjust}
             if end:
                 kwargs["end"] = end
             data = ticker_obj.history(**kwargs)
         elif period in _CUSTOM_PERIOD_YEARS:
             computed_start = date.today() - timedelta(days=_CUSTOM_PERIOD_YEARS[period] * 365)
-            data = ticker_obj.history(start=str(computed_start), auto_adjust=True)
+            data = ticker_obj.history(start=str(computed_start), auto_adjust=auto_adjust)
         else:
-            data = ticker_obj.history(period=period, auto_adjust=True)
+            data = ticker_obj.history(period=period, auto_adjust=auto_adjust)
         if data.empty:
             raise ValueError("yfinance devolvió datos vacíos")
-        df = data[["Close"]].reset_index()
-        df.columns = ["fecha", "valor_liquidativo"]
-        df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
-        return df.dropna()
+        return data
 
     def _from_alpha_vantage(self, ticker: str) -> pd.DataFrame:
         if not settings.alpha_vantage_api_key:
