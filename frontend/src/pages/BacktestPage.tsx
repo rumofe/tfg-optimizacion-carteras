@@ -475,6 +475,101 @@ export default function BacktestPage() {
             ))}
           </div>
 
+          {/* Descomposición precio vs dividendos */}
+          {result.descomposicion && result.dividendos && (() => {
+            const d = result.descomposicion!;
+            const div = result.dividendos!;
+            const total = Math.max(Math.abs(d.rentabilidad_total), 0.01);
+            const pctPrecio = (Math.abs(d.rentabilidad_precio) / total) * 100;
+            const pctDiv    = (Math.abs(d.rentabilidad_dividendos) / total) * 100;
+            const maxIngreso = Math.max(...div.ingresos_anuales.map((x) => x.importe_por_100), 0.01);
+            return (
+              <div style={{ ...CARD, marginBottom: '20px' }}>
+                <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Descomposición del retorno · Precio vs Dividendos
+                </h3>
+                <p style={{ color: 'var(--text-2)', fontSize: '12px', margin: '0 0 20px' }}>
+                  Tu retorno total se descompone en revalorización del precio + reinversión de dividendos.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '20px' }}>
+                  {/* Barra apilada */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                      <span style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                        Retorno total acumulado
+                      </span>
+                      <span style={{ color: d.rentabilidad_total >= 0 ? 'var(--green)' : 'var(--red)', fontSize: '24px', fontWeight: 700 }}>
+                        {d.rentabilidad_total >= 0 ? '+' : ''}{d.rentabilidad_total.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', height: '36px', borderRadius: '6px', overflow: 'hidden', backgroundColor: 'var(--raised)', marginBottom: '12px' }}>
+                      <div style={{
+                        width: `${pctPrecio}%`,
+                        backgroundColor: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontSize: '12px', fontWeight: 600,
+                      }}>
+                        {pctPrecio > 12 ? `${d.rentabilidad_precio.toFixed(1)}%` : ''}
+                      </div>
+                      <div style={{
+                        width: `${pctDiv}%`,
+                        backgroundColor: 'var(--green)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontSize: '12px', fontWeight: 600,
+                      }}>
+                        {pctDiv > 12 ? `${d.rentabilidad_dividendos.toFixed(1)}%` : ''}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '20px', fontSize: '11px' }}>
+                      <span style={{ color: 'var(--accent)' }}>
+                        ● Precio: <strong>{d.rentabilidad_precio.toFixed(2)}%</strong>
+                        <span style={{ color: 'var(--text-3)', marginLeft: '4px' }}>({pctPrecio.toFixed(0)}%)</span>
+                      </span>
+                      <span style={{ color: 'var(--green)' }}>
+                        ● Dividendos: <strong>{d.rentabilidad_dividendos.toFixed(2)}%</strong>
+                        <span style={{ color: 'var(--text-3)', marginLeft: '4px' }}>({pctDiv.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <div style={{ marginTop: '14px', padding: '10px 12px', backgroundColor: 'var(--raised)', borderRadius: 'var(--radius-sm)', fontSize: '11px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+                      Por cada <strong style={{ color: 'var(--text)' }}>10.000 €</strong> invertidos al inicio,
+                      la cartera generó aproximadamente <strong style={{ color: 'var(--green)' }}>{(div.ingresos_totales * 100).toFixed(0)} €</strong> en dividendos
+                      durante todo el periodo (yield medio anual <strong style={{ color: 'var(--green)' }}>{div.yield_promedio_anual.toFixed(2)}%</strong>).
+                    </div>
+                  </div>
+                  {/* Mini chart ingresos por año */}
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '10px' }}>
+                      Ingresos por dividendos · €/año (sobre 10 000 €)
+                    </div>
+                    {div.ingresos_anuales.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: '12px', fontStyle: 'italic' }}>
+                        Sin dividendos en el periodo.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {div.ingresos_anuales.map((y) => {
+                          const eur = y.importe_por_100 * 100;
+                          const w = (y.importe_por_100 / maxIngreso) * 100;
+                          return (
+                            <div key={y.año} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ color: 'var(--text-2)', fontSize: '11px', width: '36px', fontFamily: 'monospace' }}>{y.año}</span>
+                              <div style={{ flex: 1, height: '14px', backgroundColor: 'var(--raised)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${w}%`, height: '100%', backgroundColor: 'var(--green)' }} />
+                              </div>
+                              <span style={{ color: 'var(--green)', fontSize: '11px', fontWeight: 600, width: '52px', textAlign: 'right' }}>
+                                {eur.toFixed(0)} €
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Benchmark comparison */}
           <div style={{ ...CARD, marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>

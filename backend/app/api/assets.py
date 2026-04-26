@@ -38,6 +38,32 @@ def _market_cap_cat(mc: float | None) -> str:
     return "Small Cap"
 
 
+def _detectar_frecuencia_dividendos(dividends: "pd.Series") -> str:
+    """
+    Detecta la frecuencia de pago de dividendos a partir del histórico:
+    mensual / trimestral / semestral / anual / irregular / ninguno.
+    """
+    if dividends is None or len(dividends) < 2:
+        return "Ninguno" if dividends is None or len(dividends) == 0 else "Irregular"
+    # Tomar últimos 4 años para evitar ruido por cambios históricos
+    import pandas as pd
+    cutoff = dividends.index.max() - pd.Timedelta(days=1460)
+    recientes = dividends[dividends.index >= cutoff]
+    if len(recientes) < 2:
+        return "Irregular"
+    # Diferencia media en días entre pagos
+    dias_entre_pagos = recientes.index.to_series().diff().dt.days.dropna().mean()
+    if dias_entre_pagos < 45:
+        return "Mensual"
+    if dias_entre_pagos < 120:
+        return "Trimestral"
+    if dias_entre_pagos < 240:
+        return "Semestral"
+    if dias_entre_pagos < 450:
+        return "Anual"
+    return "Irregular"
+
+
 def _estilo_inversion(pe: float | None, pb: float | None) -> str:
     """Value/Blend/Growth basado en ratios P/E y P/B (método simplificado Morningstar)."""
     if pe is None and pb is None:
@@ -127,7 +153,8 @@ def get_info(ticker: str):
     ticker_upper = ticker.upper()
     logger.info("GET /assets/%s/info", ticker_upper)
     try:
-        info = yf.Ticker(ticker_upper).info
+        ticker_obj = yf.Ticker(ticker_upper)
+        info = ticker_obj.info
     except Exception as exc:
         logger.error("Error obteniendo info para %s: %s", ticker_upper, exc)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
@@ -141,6 +168,28 @@ def get_info(ticker: str):
     market_cap  = info.get("marketCap")
     sector_str  = info.get("sector") or ""
 
+    # Dividend yield: yfinance lo expone en distintos campos según el activo.
+    # `dividendYield` viene como decimal (0.025) para acciones,
+    # `yield` para ETFs/fondos. Normalizamos a porcentaje.
+    raw_yield = (
+        info.get("dividendYield")
+        or info.get("trailingAnnualDividendYield")
+        or info.get("yield")
+    )
+    if raw_yield is not None:
+        # yfinance a veces devuelve ya en %, a veces como decimal. Heurística:
+        dividend_yield = float(raw_yield) if raw_yield > 1 else float(raw_yield) * 100
+        dividend_yield = round(dividend_yield, 4)
+    else:
+        dividend_yield = None
+
+    # Frecuencia de pago: detectada del histórico de dividendos (más fiable que info)
+    try:
+        dividends = ticker_obj.dividends
+        payout_frequency = _detectar_frecuencia_dividendos(dividends)
+    except Exception:
+        payout_frequency = "Desconocido"
+
     return {
         "ticker":              ticker_upper,
         "nombre":              info.get("longName") or info.get("shortName") or ticker_upper,
@@ -153,4 +202,6 @@ def get_info(ticker: str):
         "market_cap_categoria": _market_cap_cat(market_cap),
         "estilo_inversion":    _estilo_inversion(info.get("trailingPE"), info.get("priceToBook")),
         "tipo_accion":         _SECTOR_TO_TYPE.get(sector_str, "Desconocido"),
+        "dividend_yield":      dividend_yield,
+        "payout_frequency":    payout_frequency,
     }

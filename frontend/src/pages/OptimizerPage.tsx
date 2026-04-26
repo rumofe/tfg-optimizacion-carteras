@@ -7,6 +7,7 @@ import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult, ParetoPoi
 import TickerSearch from '../components/TickerSearch';
 import SliderInput from '../components/SliderInput';
 import { COLORS, CARD, INPUT, LABEL } from '../styles';
+import { TEMPLATES, PERFIL_META, detectarPerfil, PortfolioTemplate, PerfilTemplate } from '../portfolioTemplates';
 
 function pct(n: number) { return `${(n * 100).toFixed(2)}%`; }
 
@@ -62,14 +63,24 @@ export default function OptimizerPage() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [capital, setCapital] = useState(10000);
   const [maxVol, setMaxVol] = useState(25);
+  const [userProfile, setUserProfile] = useState<PerfilTemplate | null>(null);
+  const [mostrarTodasPlantillas, setMostrarTodasPlantillas] = useState(false);
+  const [plantillaActiva, setPlantillaActiva] = useState<string | null>(null);
 
   // Pre-rellenar capital y volatilidad máxima desde el perfil del inversor
   useEffect(() => {
     getProfile().then(({ data }) => {
       if (data.capital_base)      setCapital(data.capital_base);
       if (data.tolerancia_riesgo) setMaxVol(data.tolerancia_riesgo);
+      setUserProfile(detectarPerfil(data.tolerancia_riesgo));
     }).catch(() => { /* perfil no disponible, usar defaults */ });
   }, []);
+
+  function aplicarPlantilla(t: PortfolioTemplate) {
+    setTickers(t.tickers);
+    setMaxVol(t.volatilidadSugerida);
+    setPlantillaActiva(t.id);
+  }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OptimizeResult | null>(null);
@@ -135,6 +146,88 @@ export default function OptimizerPage() {
           Maximización del ratio Sharpe · Frontera Eficiente de Markowitz
         </p>
       </div>
+
+      {/* Plantillas según perfil */}
+      {(() => {
+        const plantillasVisibles = mostrarTodasPlantillas || !userProfile
+          ? TEMPLATES
+          : TEMPLATES.filter((t) => t.perfil === userProfile);
+        const perfilLabel = userProfile ? PERFIL_META[userProfile].label.toLowerCase() : null;
+        return (
+          <div style={{ ...CARD, marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <div style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Plantillas {userProfile && !mostrarTodasPlantillas ? <>· perfil <span style={{ color: PERFIL_META[userProfile].color }}>{perfilLabel}</span></> : 'de cartera'}
+                </div>
+                <div style={{ color: 'var(--text-3)', fontSize: '11px', marginTop: '3px' }}>
+                  Un click → autorrellena tickers y volatilidad. Solo falta pulsar "Optimizar".
+                </div>
+              </div>
+              {userProfile && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarTodasPlantillas((v) => !v)}
+                  style={{
+                    padding: '5px 12px', fontSize: '11px',
+                    backgroundColor: 'transparent', color: 'var(--text-2)',
+                    border: '1px solid var(--border)', borderRadius: '14px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {mostrarTodasPlantillas ? `Solo mi perfil (${perfilLabel})` : 'Ver todas'}
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              {plantillasVisibles.map((t) => {
+                const meta = PERFIL_META[t.perfil];
+                const active = plantillaActiva === t.id;
+                const visibleTickers = t.tickers.slice(0, 6);
+                const restantes = t.tickers.length - visibleTickers.length;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => aplicarPlantilla(t)}
+                    style={{
+                      padding: '12px 14px',
+                      backgroundColor: active ? 'var(--raised)' : 'transparent',
+                      border: `1px solid ${active ? meta.color : 'var(--border)'}`,
+                      borderLeft: `3px solid ${meta.color}`,
+                      borderRadius: 'var(--radius-sm)',
+                      textAlign: 'left', cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                      <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>{t.nombre}</span>
+                      <span style={{ color: meta.color, fontSize: '10px', fontWeight: 600, whiteSpace: 'nowrap' }}>≤ {t.volatilidadSugerida}%</span>
+                    </div>
+                    <div style={{ color: 'var(--text-3)', fontSize: '10px', lineHeight: 1.4 }}>
+                      {t.descripcion}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '2px' }}>
+                      {visibleTickers.map((tk) => (
+                        <span key={tk} style={{
+                          padding: '1px 6px', fontSize: '10px',
+                          backgroundColor: 'var(--raised)', color: 'var(--text-2)',
+                          border: '1px solid var(--border)', borderRadius: '8px',
+                          fontFamily: 'monospace',
+                        }}>{tk}</span>
+                      ))}
+                      {restantes > 0 && (
+                        <span style={{ padding: '1px 6px', fontSize: '10px', color: 'var(--text-3)' }}>+{restantes}</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Form */}
       <form onSubmit={handleOptimize} style={{ ...CARD, marginBottom: '28px' }}>

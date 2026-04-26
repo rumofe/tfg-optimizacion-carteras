@@ -148,6 +148,18 @@ export interface CrisisItem {
   benchmark?: MetricasItem;
 }
 
+export interface DescomposicionRetorno {
+  rentabilidad_precio: number;
+  rentabilidad_dividendos: number;
+  rentabilidad_total: number;
+}
+
+export interface DividendosInfo {
+  ingresos_anuales: { año: number; importe_por_100: number }[];
+  yield_promedio_anual: number;   // %
+  ingresos_totales: number;       // € por cada 100€ invertidos
+}
+
 export interface BacktestResult {
   rentabilidad_acumulada: number;
   retorno_anualizado: number;
@@ -161,6 +173,8 @@ export interface BacktestResult {
   benchmark_retorno_anualizado: number;
   serie_temporal: { fecha: string; valor_cartera: number; valor_benchmark: number }[];
   crisis: Record<string, CrisisItem>;
+  descomposicion?: DescomposicionRetorno;
+  dividendos?: DividendosInfo;
 }
 
 export interface SearchResult {
@@ -188,6 +202,8 @@ export interface TickerInfo {
   market_cap_categoria: 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Desconocido';
   estilo_inversion: 'Value' | 'Blend' | 'Growth' | 'Desconocido';
   tipo_accion: 'Cyclical' | 'Sensitive' | 'Defensive' | 'Desconocido';
+  dividend_yield: number | null;   // % anual
+  payout_frequency: 'Mensual' | 'Trimestral' | 'Semestral' | 'Anual' | 'Irregular' | 'Ninguno' | 'Desconocido';
 }
 
 export default api;
