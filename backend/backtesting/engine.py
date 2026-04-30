@@ -14,6 +14,15 @@ CRISIS_PERIODS = {
     "correccion_2022": ("2022-01-03", "2022-10-12"),
 }
 
+# Frecuencias de rebalanceo soportadas: clave → freq de pandas para resample
+_REBALANCING_FREQ: dict[str, str] = {
+    "ninguno":    "",
+    "anual":      "YE",
+    "semestral":  "2QE",
+    "trimestral": "QE",
+    "mensual":    "ME",
+}
+
 
 def _calcular_metricas(precio_serie: pd.Series, benchmark_serie: pd.Series | None = None) -> dict:
     """
@@ -76,7 +85,19 @@ class BacktestEngine:
         periodo: str = "5y",
         fecha_inicio: str | None = None,
         fecha_fin: str | None = None,
+        rebalanceo: str = "ninguno",
+        comision_pct: float = 0.0,
     ):
+        if rebalanceo not in _REBALANCING_FREQ:
+            raise ValueError(
+                f"Frecuencia de rebalanceo inválida: '{rebalanceo}'. "
+                f"Opciones: {list(_REBALANCING_FREQ)}"
+            )
+        if comision_pct < 0 or comision_pct > 5:
+            raise ValueError("La comisión debe estar entre 0 y 5 %.")
+
+        self.rebalanceo = rebalanceo
+        self.comision = comision_pct / 100.0
         connector = MarketDataConnector()
 
         precios_total: dict[str, pd.Series] = {}
@@ -110,21 +131,99 @@ class BacktestEngine:
         self.price_only_df = price_only_df   # solo precio (sin dividendos)
         self.div_df = div_df                 # dividendos brutos pagados por acción
 
-    def _serie_cartera(self, df: pd.DataFrame) -> pd.Series:
-        """Construye serie indexada por fecha base 100 a partir de un DataFrame de precios."""
+    def _serie_cartera_simple(self, df: pd.DataFrame) -> pd.Series:
+        """Buy & hold: pondera retornos diarios sin rebalancear."""
         retornos = df[self.tickers].pct_change().dropna()
         retorno_cartera = sum(
             retornos[t] * self.pesos.get(t, 0.0) for t in self.tickers
         )
         return (1 + retorno_cartera).cumprod() * 100
 
+    def _serie_cartera_rebalanceada(self, df: pd.DataFrame) -> tuple[pd.Series, list[dict]]:
+        """
+        Simula la cartera con rebalanceo periódico al peso objetivo y comisiones
+        proporcionales al volumen rebalanceado.
+
+        Modelo: en cada fecha de rebalanceo, los pesos efectivos vuelven al
+        objetivo. La comisión se aplica como un haircut sobre el valor de la
+        cartera proporcional al "turnover" (fracción de la cartera que cambia
+        de manos).
+
+        Returns
+        -------
+        (precio_cartera, eventos_rebalanceo)
+            precio_cartera: pd.Series base 100
+            eventos_rebalanceo: lista de {fecha, turnover, coste_pct}
+        """
+        precios = df[self.tickers].dropna()
+        retornos = precios.pct_change().fillna(0.0)
+
+        target = pd.Series(self.pesos, index=self.tickers)
+        target = target / target.sum()
+
+        # Días de rebalanceo según frecuencia. Resample devuelve etiqueta al final
+        # del periodo; usamos esas fechas como "rebalanceo se hace el siguiente
+        # día disponible".
+        freq = _REBALANCING_FREQ[self.rebalanceo]
+        if freq:
+            marcadores = precios.resample(freq).last().index
+            # Mapear cada marcador al primer día de cotización siguiente o igual
+            indice = precios.index
+            fechas_rebal = set()
+            for m in marcadores:
+                pos = indice.searchsorted(m)
+                if pos < len(indice):
+                    fechas_rebal.add(indice[pos])
+            # No rebalancear el primer día (ya partimos en target)
+            fechas_rebal.discard(indice[0])
+        else:
+            fechas_rebal = set()
+
+        # Simulación día a día
+        pesos = target.copy()
+        valor = 100.0
+        valores: list[float] = []
+        eventos: list[dict] = []
+
+        for fecha in precios.index:
+            # 1) Aplicar retorno diario a cada ticker → pesos efectivos derivan
+            r = retornos.loc[fecha]
+            crecimiento = (pesos * (1 + r)).sum()
+            valor *= float(crecimiento)
+            pesos = (pesos * (1 + r)) / crecimiento
+
+            # 2) Rebalanceo (al cierre de ese día)
+            if fecha in fechas_rebal:
+                turnover = float((pesos - target).abs().sum() / 2.0)
+                coste = turnover * 2 * self.comision  # se vende y se compra
+                valor *= (1 - coste)
+                pesos = target.copy()
+                if turnover > 1e-6:
+                    eventos.append({
+                        "fecha": str(fecha.date()) if hasattr(fecha, "date") else str(fecha),
+                        "turnover": round(turnover, 4),
+                        "coste_pct": round(coste * 100, 4),
+                    })
+
+            valores.append(valor)
+
+        serie = pd.Series(valores, index=precios.index)
+        return serie, eventos
+
     def _cartera_precio_serie(self) -> pd.Series:
         """Serie de la cartera en total return (con dividendos reinvertidos)."""
-        return self._serie_cartera(self.price_df)
+        if self.rebalanceo == "ninguno" and self.comision == 0:
+            return self._serie_cartera_simple(self.price_df)
+        serie, eventos = self._serie_cartera_rebalanceada(self.price_df)
+        self._eventos_rebalanceo = eventos
+        return serie
 
     def _cartera_precio_solo_serie(self) -> pd.Series:
         """Serie de la cartera solo precio (sin dividendos)."""
-        return self._serie_cartera(self.price_only_df)
+        if self.rebalanceo == "ninguno" and self.comision == 0:
+            return self._serie_cartera_simple(self.price_only_df)
+        serie, _ = self._serie_cartera_rebalanceada(self.price_only_df)
+        return serie
 
     def _calcular_dividendos(self) -> dict:
         """
@@ -170,6 +269,7 @@ class BacktestEngine:
         }
 
     def ejecutar(self) -> dict:
+        self._eventos_rebalanceo: list[dict] = []
         precio_cartera = self._cartera_precio_serie()
         precio_cartera_solo = self._cartera_precio_solo_serie()
         precio_spy = self.price_df["SPY"].loc[precio_cartera.index]
@@ -196,6 +296,16 @@ class BacktestEngine:
             )
         ]
 
+        eventos = getattr(self, "_eventos_rebalanceo", [])
+        coste_total_pct = round(sum(e["coste_pct"] for e in eventos), 4)
+        rebalanceo_info = {
+            "frecuencia": self.rebalanceo,
+            "comision_pct": round(self.comision * 100, 4),
+            "n_rebalanceos": len(eventos),
+            "coste_total_pct": coste_total_pct,
+            "eventos": eventos[-12:],  # últimos 12 para no saturar payload
+        }
+
         return {
             "rentabilidad_acumulada": metricas["rentabilidad_acumulada"],
             "retorno_anualizado": metricas["retorno_anualizado"],
@@ -214,6 +324,7 @@ class BacktestEngine:
                 "rentabilidad_total": rent_total,
             },
             "dividendos": info_dividendos,
+            "rebalanceo": rebalanceo_info,
         }
 
     def analizar_crisis(self) -> dict:

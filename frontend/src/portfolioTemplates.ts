@@ -48,6 +48,22 @@ export const TEMPLATES: PortfolioTemplate[] = [
     tickers: ['NEE', 'SO', 'DUK', 'O', 'VNQ'],
     volatilidadSugerida: 14,
   },
+  {
+    id: 'bond-ladder',
+    nombre: 'Bond Ladder · solo renta fija',
+    descripcion: 'Escalera de bonos del Tesoro USA por duraciones (corto, medio y largo plazo) + agregado + protección inflación.',
+    perfil: 'conservador',
+    tickers: ['SHY', 'IEF', 'TLT', 'AGG', 'TIP'],
+    volatilidadSugerida: 10,
+  },
+  {
+    id: 'permanent-portfolio',
+    nombre: 'Permanent Portfolio (Browne)',
+    descripcion: '25/25/25/25: equity + bonos LP + bonos CP + oro. Diseñada para resistir cualquier régimen económico.',
+    perfil: 'conservador',
+    tickers: ['VTI', 'TLT', 'SHY', 'GLD'],
+    volatilidadSugerida: 12,
+  },
 
   // ─── Moderado (≤ 25 % vol) ─────────────────────────────────────────────────
   {
@@ -73,6 +89,22 @@ export const TEMPLATES: PortfolioTemplate[] = [
     perfil: 'moderado',
     tickers: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'BRK-B', 'JNJ', 'V', 'JPM'],
     volatilidadSugerida: 25,
+  },
+  {
+    id: 'all-weather-dalio',
+    nombre: 'All Weather (Ray Dalio)',
+    descripcion: '30 % equity + 55 % bonos LP/MP + 15 % commodities/oro. La cartera "para todo clima" de Bridgewater.',
+    perfil: 'moderado',
+    tickers: ['VTI', 'TLT', 'IEF', 'GLD', 'DBC'],
+    volatilidadSugerida: 18,
+  },
+  {
+    id: 'income-bonos-dividendos',
+    nombre: 'Income · bonos + dividendos',
+    descripcion: 'Combina ETFs de bonos high-yield e investment grade con dividend stocks. Pensada para generar rentas.',
+    perfil: 'moderado',
+    tickers: ['LQD', 'HYG', 'TLT', 'JNJ', 'KO', 'PG', 'O', 'VNQ'],
+    volatilidadSugerida: 16,
   },
 
   // ─── Agresivo (≤ 40 % vol) ─────────────────────────────────────────────────

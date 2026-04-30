@@ -45,6 +45,8 @@ export default function BacktestPage() {
   const [tipoPeriodo, setTipoPeriodo] = useState<'predefinido' | 'personalizado'>('predefinido');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin]       = useState('');
+  const [rebalanceo, setRebalanceo]   = useState<'ninguno' | 'mensual' | 'trimestral' | 'semestral' | 'anual'>('ninguno');
+  const [comisionPct, setComisionPct] = useState<string>('0');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -111,9 +113,10 @@ export default function BacktestPage() {
     setLoading(true);
 
     try {
+      const com = parseFloat(comisionPct.replace(',', '.')) || 0;
       const { data } = tipoPeriodo === 'personalizado'
-        ? await runBacktest(tickers, pesos, '5y', fechaInicio, fechaFin || undefined)
-        : await runBacktest(tickers, pesos, period);
+        ? await runBacktest(tickers, pesos, '5y', fechaInicio, fechaFin || undefined, rebalanceo, com)
+        : await runBacktest(tickers, pesos, period, undefined, undefined, rebalanceo, com);
       setResult(data);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -389,9 +392,58 @@ export default function BacktestPage() {
           )}
         </div>
 
+        {/* Rebalanceo + comisiones */}
+        <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px dashed var(--border)' }}>
+          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+            Rebalanceo y comisiones <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· opcional · refleja la realidad de gestionar la cartera</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', alignItems: 'flex-end' }}>
+            <div>
+              <label style={LABEL}>Frecuencia de rebalanceo</label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {([
+                  { v: 'ninguno',    l: 'Ninguno' },
+                  { v: 'anual',      l: 'Anual' },
+                  { v: 'semestral',  l: 'Semestral' },
+                  { v: 'trimestral', l: 'Trimestral' },
+                  { v: 'mensual',    l: 'Mensual' },
+                ] as const).map(({ v, l }) => (
+                  <button
+                    key={v} type="button" onClick={() => setRebalanceo(v)}
+                    style={{
+                      padding: '6px 12px', fontSize: '12px',
+                      backgroundColor: rebalanceo === v ? 'var(--accent)' : 'var(--raised)',
+                      color: rebalanceo === v ? '#fff' : 'var(--text-2)',
+                      border: `1px solid ${rebalanceo === v ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: '6px', cursor: 'pointer',
+                      fontWeight: rebalanceo === v ? 600 : 400,
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={LABEL}>Comisión por operación (%)</label>
+              <input
+                type="number" min={0} max={5} step={0.05}
+                value={comisionPct}
+                onChange={(e) => setComisionPct(e.target.value)}
+                disabled={rebalanceo === 'ninguno'}
+                placeholder="0.10"
+                style={{ ...INPUT, opacity: rebalanceo === 'ninguno' ? 0.5 : 1 }}
+              />
+              <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '4px' }}>
+                Broker low-cost ≈ 0.05–0.10 % · Bancos tradicionales ≈ 0.30–0.50 %
+              </div>
+            </div>
+          </div>
+        </div>
+
         {error && (
           <div style={{
-            color: 'var(--red)', fontSize: '13px', marginBottom: '12px',
+            color: 'var(--red)', fontSize: '13px', marginBottom: '12px', marginTop: '16px',
             padding: '9px 12px', backgroundColor: 'rgba(232, 64, 64, 0.08)',
             border: '1px solid rgba(232, 64, 64, 0.3)', borderRadius: '6px',
           }}>
@@ -566,6 +618,64 @@ export default function BacktestPage() {
                     )}
                   </div>
                 </div>
+              </div>
+            );
+          })()}
+
+          {/* Rebalanceo & comisiones */}
+          {result.rebalanceo && result.rebalanceo.frecuencia !== 'ninguno' && (() => {
+            const rb = result.rebalanceo!;
+            const labelFreq: Record<string, string> = {
+              mensual: 'mensual', trimestral: 'trimestral',
+              semestral: 'semestral', anual: 'anual', ninguno: '—',
+            };
+            return (
+              <div style={{ ...CARD, marginBottom: '20px' }}>
+                <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Rebalanceo y comisiones
+                </h3>
+                <p style={{ color: 'var(--text-2)', fontSize: '12px', margin: '0 0 16px' }}>
+                  Simulación con rebalanceo {labelFreq[rb.frecuencia]} y comisión del {rb.comision_pct.toFixed(2)} % por operación.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '14px' }}>
+                  <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--accent)' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Nº de rebalanceos</div>
+                    <div style={{ color: 'var(--accent)', fontSize: '24px', fontWeight: 700, marginTop: '4px' }}>{rb.n_rebalanceos}</div>
+                  </div>
+                  <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--amber)' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Coste total acumulado</div>
+                    <div style={{ color: 'var(--amber)', fontSize: '24px', fontWeight: 700, marginTop: '4px' }}>−{rb.coste_total_pct.toFixed(2)}%</div>
+                  </div>
+                  <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--text-3)' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>≈ Coste sobre 10 000 €</div>
+                    <div style={{ color: 'var(--text)', fontSize: '24px', fontWeight: 700, marginTop: '4px' }}>−{(rb.coste_total_pct * 100).toFixed(0)} €</div>
+                  </div>
+                </div>
+                {rb.eventos.length > 0 && (
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '8px' }}>
+                      Últimos rebalanceos {rb.eventos.length < rb.n_rebalanceos && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text-3)' }}>(últimos {rb.eventos.length} de {rb.n_rebalanceos})</span>}
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr>
+                          {['Fecha', 'Turnover', 'Coste'].map((h) => (
+                            <th key={h} style={{ color: 'var(--text-2)', textAlign: 'left', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rb.eventos.slice().reverse().map((ev) => (
+                          <tr key={ev.fecha}>
+                            <td style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', color: 'var(--text-2)', fontFamily: 'monospace' }}>{ev.fecha}</td>
+                            <td style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>{(ev.turnover * 100).toFixed(2)}%</td>
+                            <td style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', color: 'var(--amber)', fontWeight: 600 }}>−{ev.coste_pct.toFixed(3)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })()}

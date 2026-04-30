@@ -66,11 +66,15 @@ export function runBacktest(
   periodo: string,
   fecha_inicio?: string,
   fecha_fin?: string,
+  rebalanceo: string = 'ninguno',
+  comision_pct: number = 0,
 ) {
   return api.post<BacktestResult>('/backtesting/run', {
     tickers,
     pesos,
     periodo,
+    rebalanceo,
+    comision_pct,
     ...(fecha_inicio ? { fecha_inicio } : {}),
     ...(fecha_fin   ? { fecha_fin }   : {}),
   });
@@ -160,6 +164,14 @@ export interface DividendosInfo {
   ingresos_totales: number;       // € por cada 100€ invertidos
 }
 
+export interface RebalanceoInfo {
+  frecuencia: 'ninguno' | 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  comision_pct: number;
+  n_rebalanceos: number;
+  coste_total_pct: number;
+  eventos: { fecha: string; turnover: number; coste_pct: number }[];
+}
+
 export interface BacktestResult {
   rentabilidad_acumulada: number;
   retorno_anualizado: number;
@@ -175,6 +187,7 @@ export interface BacktestResult {
   crisis: Record<string, CrisisItem>;
   descomposicion?: DescomposicionRetorno;
   dividendos?: DividendosInfo;
+  rebalanceo?: RebalanceoInfo;
 }
 
 export interface SearchResult {
@@ -202,6 +215,7 @@ export interface TickerInfo {
   market_cap_categoria: 'Large Cap' | 'Mid Cap' | 'Small Cap' | 'Desconocido';
   estilo_inversion: 'Value' | 'Blend' | 'Growth' | 'Desconocido';
   tipo_accion: 'Cyclical' | 'Sensitive' | 'Defensive' | 'Desconocido';
+  asset_class: 'Equity' | 'Bonds' | 'Real Estate' | 'Commodities' | 'Cash' | 'Alternatives' | 'Mixed';
   dividend_yield: number | null;   // % anual
   payout_frequency: 'Mensual' | 'Trimestral' | 'Semestral' | 'Anual' | 'Irregular' | 'Ninguno' | 'Desconocido';
 }

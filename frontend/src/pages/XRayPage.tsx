@@ -121,6 +121,34 @@ function calcularDividendosCartera(
   };
 }
 
+// ─── Distribución por clase de activo ────────────────────────────────────────
+type AssetClass = TickerInfo['asset_class'];
+
+const ASSET_CLASS_CONFIG: Record<AssetClass, { color: string; label: string; descr: string }> = {
+  'Equity':       { color: 'var(--accent)', label: 'Renta variable', descr: 'Acciones y ETFs de equity' },
+  'Bonds':        { color: 'var(--green)',  label: 'Renta fija',     descr: 'Bonos del Estado, corporativos, agregados' },
+  'Real Estate':  { color: 'var(--purple)', label: 'Inmobiliario',   descr: 'REITs, ETFs de real estate' },
+  'Commodities':  { color: 'var(--amber)',  label: 'Materias primas', descr: 'Oro, plata, petróleo, agrícolas' },
+  'Cash':         { color: '#22d3ee',       label: 'Efectivo',       descr: 'Money market, T-bills ultracortos' },
+  'Alternatives': { color: 'var(--red)',    label: 'Alternativos',   descr: 'Cripto, hedge, otros' },
+  'Mixed':        { color: 'var(--text-2)', label: 'Mixto',          descr: 'Activos multi-clase' },
+};
+
+const ASSET_CLASS_ORDER: AssetClass[] = [
+  'Equity', 'Bonds', 'Real Estate', 'Commodities', 'Cash', 'Alternatives', 'Mixed',
+];
+
+function calcularAssetClassDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<AssetClass, number> {
+  const out: Record<AssetClass, number> = {
+    Equity: 0, Bonds: 0, 'Real Estate': 0, Commodities: 0, Cash: 0, Alternatives: 0, Mixed: 0,
+  };
+  for (const a of activos) {
+    const cls = infos[a.ticker]?.asset_class ?? 'Equity';
+    out[cls] = (out[cls] ?? 0) + a.peso_asignado * 100;
+  }
+  return out;
+}
+
 function calcularTipoAccionDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
   const out: Record<string, number> = { Cyclical: 0, Sensitive: 0, Defensive: 0 };
   for (const a of activos) {
@@ -263,6 +291,8 @@ export default function XRayPage() {
             const estiloDist     = calcularEstiloDist(p.activos, tickerInfos);
             const tipoAccionDist = calcularTipoAccionDist(p.activos, tickerInfos);
             const dividendos     = calcularDividendosCartera(p.activos, tickerInfos);
+            const assetClassDist = calcularAssetClassDist(p.activos, tickerInfos);
+            const assetClassesPresentes = ASSET_CLASS_ORDER.filter((c) => assetClassDist[c] > 0.05);
             const maxBoxValue    = Math.max(
               ...CAPS_BOX.flatMap(c => STYLES_BOX.map(s => styleBox[c]?.[s] ?? 0)), 0.01
             );
@@ -543,6 +573,76 @@ export default function XRayPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* ── Distribución por clase de activo ── */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
+                      <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                        Distribución por clase de activo
+                      </div>
+                      <div style={{ color: 'var(--text-3)', fontSize: '11px', marginBottom: '14px' }}>
+                        Cómo se reparte el capital entre clases (renta variable, renta fija, materias primas…). Es el primer nivel de diversificación.
+                      </div>
+                      {/* Barra apilada horizontal */}
+                      <div style={{ display: 'flex', height: '36px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--raised)', marginBottom: '14px' }}>
+                        {assetClassesPresentes.map((cls) => {
+                          const pct = assetClassDist[cls];
+                          const cfg = ASSET_CLASS_CONFIG[cls];
+                          return (
+                            <div key={cls}
+                              title={`${cfg.label}: ${pct.toFixed(1)}%`}
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: cfg.color,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#fff', fontSize: '11px', fontWeight: 600,
+                              }}>
+                              {pct >= 8 ? `${pct.toFixed(0)}%` : ''}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Cards por clase presente */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${Math.min(assetClassesPresentes.length, 4)}, 1fr)`,
+                        gap: '10px',
+                      }}>
+                        {assetClassesPresentes.map((cls) => {
+                          const cfg = ASSET_CLASS_CONFIG[cls];
+                          const pct = assetClassDist[cls];
+                          return (
+                            <div key={cls} style={{
+                              padding: '12px 14px', borderRadius: 'var(--radius-sm)',
+                              backgroundColor: 'var(--raised)',
+                              borderLeft: `3px solid ${cfg.color}`,
+                            }}>
+                              <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '4px' }}>
+                                {cfg.label}
+                              </div>
+                              <div style={{ color: cfg.color, fontSize: '20px', fontWeight: 700, lineHeight: 1 }}>
+                                {pct.toFixed(1)}%
+                              </div>
+                              <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '4px', lineHeight: 1.4 }}>
+                                {cfg.descr}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Aviso si solo hay una clase */}
+                      {assetClassesPresentes.length === 1 && (
+                        <div style={{
+                          marginTop: '12px', padding: '10px 12px',
+                          backgroundColor: 'rgba(232,166,64,0.08)',
+                          border: '1px solid rgba(232,166,64,0.3)',
+                          borderRadius: '6px', fontSize: '11px', color: 'var(--amber)',
+                        }}>
+                          ⚠ Tu cartera está 100 % concentrada en una clase de activo. Considera añadir
+                          {assetClassesPresentes[0] === 'Equity' ? ' bonos (BND, AGG) o real estate (VNQ)' : ' renta variable'}
+                          {' '}para mejorar la diversificación inter-clase.
+                        </div>
+                      )}
+                    </div>
 
                     {/* ── Style Box + Market Cap + Investment Style ── */}
                     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>

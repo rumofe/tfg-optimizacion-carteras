@@ -14,6 +14,7 @@ _CUSTOM_PERIOD_YEARS: dict[str, int] = {
 }
 
 from app.core.config import settings
+from etl.cache import prices_cache, ttl_cache
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class DataSourceError(Exception):
 
 
 class MarketDataConnector:
+    @ttl_cache(prices_cache)
     def get_historical_prices(
         self,
         ticker: str,
@@ -59,6 +61,7 @@ class MarketDataConnector:
         df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
         return df.dropna()
 
+    @ttl_cache(prices_cache)
     def get_historical_full(
         self,
         ticker: str,

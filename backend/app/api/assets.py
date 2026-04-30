@@ -4,13 +4,26 @@ import requests
 import yfinance as yf
 from fastapi import APIRouter, HTTPException, Query, status
 
+from etl.cache import info_cache, search_cache, ttl_cache
 from etl.market_data import DataSourceError, MarketDataConnector
 
 logger = logging.getLogger(__name__)
 
+from etl.cache import prices_cache  # noqa: E402
+
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 _connector = MarketDataConnector()
+
+
+@router.get("/cache-stats", include_in_schema=False)
+def cache_stats():
+    """Métricas del sistema de caché (útil para debug y para la memoria)."""
+    return {
+        "prices": prices_cache.stats(),
+        "info":   info_cache.stats(),
+        "search": search_cache.stats(),
+    }
 
 # ─── Clasificación Morningstar ────────────────────────────────────────────────
 _SECTOR_TO_TYPE: dict[str, str] = {
@@ -36,6 +49,87 @@ def _market_cap_cat(mc: float | None) -> str:
     if mc >= 2_000_000_000:
         return "Mid Cap"
     return "Small Cap"
+
+
+# ─── Clasificación por clase de activo ───────────────────────────────────────
+# Heurística:
+# 1) Mapeo explícito de tickers populares (más fiable que `category` de yfinance).
+# 2) Si no hay match, se infiere por `quoteType` + `category` + nombre.
+_ASSET_CLASS_OVERRIDE: dict[str, str] = {
+    # Bonos (Treasury y agregados)
+    "BND": "Bonds", "AGG": "Bonds", "TLT": "Bonds", "IEF": "Bonds", "SHY": "Bonds",
+    "BNDX": "Bonds", "BSV": "Bonds", "VCIT": "Bonds", "VCSH": "Bonds", "VCLT": "Bonds",
+    "LQD": "Bonds", "HYG": "Bonds", "JNK": "Bonds", "EMB": "Bonds", "TIP": "Bonds",
+    "MUB": "Bonds", "SCHO": "Bonds", "SCHR": "Bonds", "GOVT": "Bonds", "VGIT": "Bonds",
+    "VGSH": "Bonds", "VGLT": "Bonds", "BIL": "Bonds", "SHV": "Bonds",
+    # Real estate
+    "VNQ": "Real Estate", "IYR": "Real Estate", "SCHH": "Real Estate", "REET": "Real Estate",
+    "VNQI": "Real Estate", "RWR": "Real Estate", "O": "Real Estate", "PLD": "Real Estate",
+    "AMT": "Real Estate", "EQIX": "Real Estate", "PSA": "Real Estate", "SPG": "Real Estate",
+    # Commodities
+    "GLD": "Commodities", "IAU": "Commodities", "SLV": "Commodities", "PDBC": "Commodities",
+    "DBC": "Commodities", "USO": "Commodities", "UNG": "Commodities", "CPER": "Commodities",
+    "GLDM": "Commodities", "SGOL": "Commodities",
+    # Cash/Money market
+    "SGOV": "Cash", "USFR": "Cash", "FLOT": "Cash",
+}
+
+_ASSET_CLASS_KEYWORDS = {
+    "Bonds": [
+        "bond", "treasury", "fixed income", "renta fija", "agg", "high yield",
+        "investment grade", "muni", "credit", "corporate debt", "tips",
+    ],
+    "Real Estate": [
+        "real estate", "reit", "inmobiliario", "mortgage", "property",
+    ],
+    "Commodities": [
+        "gold", "silver", "oro", "plata", "commodity", "commodities",
+        "oil", "petróleo", "natural gas", "metals", "agricultural",
+    ],
+    "Cash": [
+        "money market", "treasury bill", "ultra short", "cash",
+    ],
+}
+
+
+def _detectar_clase_activo(
+    quote_type: str | None,
+    sector: str | None,
+    industria: str | None,
+    nombre: str | None,
+    category: str | None,
+    ticker: str,
+) -> str:
+    """
+    Devuelve la clase de activo: Equity | Bonds | Real Estate | Commodities | Cash | Alternatives | Mixed.
+
+    Prioridad:
+    1. Override explícito por ticker.
+    2. quoteType (CRYPTOCURRENCY, CURRENCY, INDEX) → casos especiales.
+    3. Búsqueda de keywords en nombre/categoría/industria/sector.
+    4. Si quoteType in (EQUITY, MUTUALFUND, ETF) y no matcheamos arriba → Equity por defecto.
+    """
+    if ticker in _ASSET_CLASS_OVERRIDE:
+        return _ASSET_CLASS_OVERRIDE[ticker]
+
+    if quote_type == "CRYPTOCURRENCY":
+        return "Alternatives"
+    if quote_type == "CURRENCY":
+        return "Cash"
+
+    haystack = " ".join(filter(None, [nombre, category, industria, sector])).lower()
+    for clase, keywords in _ASSET_CLASS_KEYWORDS.items():
+        if any(kw in haystack for kw in keywords):
+            return clase
+
+    # REITs detectados por sector
+    if sector and "real estate" in sector.lower():
+        return "Real Estate"
+
+    if quote_type in ("EQUITY", "MUTUALFUND", "ETF", "INDEX"):
+        return "Equity"
+
+    return "Equity"
 
 
 def _detectar_frecuencia_dividendos(dividends: "pd.Series") -> str:
@@ -86,6 +180,20 @@ def _estilo_inversion(pe: float | None, pb: float | None) -> str:
     return "Blend"
 
 
+@ttl_cache(search_cache)
+def _search_yahoo(q: str) -> list[dict]:
+    url = "https://query2.finance.yahoo.com/v1/finance/search"
+    params = {
+        "q": q, "lang": "en-US", "region": "US",
+        "quotesCount": 8, "newsCount": 0,
+        "enableFuzzyQuery": False, "enableCb": False,
+    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    resp = requests.get(url, params=params, headers=headers, timeout=8)
+    resp.raise_for_status()
+    return resp.json().get("quotes", [])
+
+
 @router.get("/search")
 def search_assets(q: str = Query(..., min_length=1, description="Texto a buscar: ticker o nombre de empresa")):
     """
@@ -93,21 +201,8 @@ def search_assets(q: str = Query(..., min_length=1, description="Texto a buscar:
     Devuelve hasta 8 resultados con ticker, nombre, tipo y exchange.
     """
     logger.info("GET /assets/search?q=%s", q)
-    url = "https://query2.finance.yahoo.com/v1/finance/search"
-    params = {
-        "q": q,
-        "lang": "en-US",
-        "region": "US",
-        "quotesCount": 8,
-        "newsCount": 0,
-        "enableFuzzyQuery": False,
-        "enableCb": False,
-    }
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     try:
-        resp = requests.get(url, params=params, headers=headers, timeout=8)
-        resp.raise_for_status()
-        quotes = resp.json().get("quotes", [])
+        quotes = _search_yahoo(q)
     except Exception as exc:
         logger.error("Error buscando '%s' en Yahoo Finance: %s", q, exc)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
@@ -144,51 +239,42 @@ def get_prices(
     }
 
 
-@router.get("/{ticker}/info")
-def get_info(ticker: str):
-    """
-    Devuelve metadatos del activo: nombre, sector, industria y país (via yfinance).
-    Útil para el X-Ray sectorial de la cartera.
-    """
-    ticker_upper = ticker.upper()
-    logger.info("GET /assets/%s/info", ticker_upper)
-    try:
-        ticker_obj = yf.Ticker(ticker_upper)
-        info = ticker_obj.info
-    except Exception as exc:
-        logger.error("Error obteniendo info para %s: %s", ticker_upper, exc)
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
-
+@ttl_cache(info_cache)
+def _build_info(ticker_upper: str) -> dict:
+    """Construye el payload de /info. Cacheado 1 h por ticker."""
+    ticker_obj = yf.Ticker(ticker_upper)
+    info = ticker_obj.info
     if not info or info.get("quoteType") is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No se encontró información para el ticker '{ticker_upper}'",
-        )
+        raise LookupError(ticker_upper)
 
     market_cap  = info.get("marketCap")
     sector_str  = info.get("sector") or ""
 
-    # Dividend yield: yfinance lo expone en distintos campos según el activo.
-    # `dividendYield` viene como decimal (0.025) para acciones,
-    # `yield` para ETFs/fondos. Normalizamos a porcentaje.
     raw_yield = (
         info.get("dividendYield")
         or info.get("trailingAnnualDividendYield")
         or info.get("yield")
     )
     if raw_yield is not None:
-        # yfinance a veces devuelve ya en %, a veces como decimal. Heurística:
         dividend_yield = float(raw_yield) if raw_yield > 1 else float(raw_yield) * 100
         dividend_yield = round(dividend_yield, 4)
     else:
         dividend_yield = None
 
-    # Frecuencia de pago: detectada del histórico de dividendos (más fiable que info)
     try:
         dividends = ticker_obj.dividends
         payout_frequency = _detectar_frecuencia_dividendos(dividends)
     except Exception:
         payout_frequency = "Desconocido"
+
+    asset_class = _detectar_clase_activo(
+        quote_type=info.get("quoteType"),
+        sector=sector_str,
+        industria=info.get("industry"),
+        nombre=info.get("longName") or info.get("shortName"),
+        category=info.get("category"),
+        ticker=ticker_upper,
+    )
 
     return {
         "ticker":              ticker_upper,
@@ -202,6 +288,27 @@ def get_info(ticker: str):
         "market_cap_categoria": _market_cap_cat(market_cap),
         "estilo_inversion":    _estilo_inversion(info.get("trailingPE"), info.get("priceToBook")),
         "tipo_accion":         _SECTOR_TO_TYPE.get(sector_str, "Desconocido"),
+        "asset_class":         asset_class,
         "dividend_yield":      dividend_yield,
         "payout_frequency":    payout_frequency,
     }
+
+
+@router.get("/{ticker}/info")
+def get_info(ticker: str):
+    """
+    Devuelve metadatos del activo: nombre, sector, industria y país (via yfinance).
+    Útil para el X-Ray sectorial de la cartera.
+    """
+    ticker_upper = ticker.upper()
+    logger.info("GET /assets/%s/info", ticker_upper)
+    try:
+        return _build_info(ticker_upper)
+    except LookupError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró información para el ticker '{ticker_upper}'",
+        )
+    except Exception as exc:
+        logger.error("Error obteniendo info para %s: %s", ticker_upper, exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))

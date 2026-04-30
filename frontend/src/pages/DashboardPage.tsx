@@ -5,9 +5,11 @@ import ThemeSelector from '../components/ThemeSelector';
 import { getProfile } from '../services/api';
 
 const NAV_ITEMS = [
-  { to: 'optimizer', label: 'Optimizador' },
-  { to: 'xray',      label: 'X-Ray'       },
-  { to: 'backtest',  label: 'Backtesting' },
+  { to: 'planner',   label: 'Planificador' },
+  { to: 'optimizer', label: 'Optimizador'  },
+  { to: 'xray',      label: 'X-Ray'        },
+  { to: 'backtest',  label: 'Backtesting'  },
+  { to: 'compare',   label: 'Comparador'   },
 ];
 
 export default function DashboardPage() {

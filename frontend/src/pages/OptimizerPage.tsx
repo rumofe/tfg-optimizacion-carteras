@@ -66,6 +66,7 @@ export default function OptimizerPage() {
   const [userProfile, setUserProfile] = useState<PerfilTemplate | null>(null);
   const [mostrarTodasPlantillas, setMostrarTodasPlantillas] = useState(false);
   const [plantillaActiva, setPlantillaActiva] = useState<string | null>(null);
+  const [plannerHint, setPlannerHint] = useState<{ capital: number; equity: number; bonds: number } | null>(null);
 
   // Pre-rellenar capital y volatilidad máxima desde el perfil del inversor
   useEffect(() => {
@@ -74,6 +75,24 @@ export default function OptimizerPage() {
       if (data.tolerancia_riesgo) setMaxVol(data.tolerancia_riesgo);
       setUserProfile(detectarPerfil(data.tolerancia_riesgo));
     }).catch(() => { /* perfil no disponible, usar defaults */ });
+
+    // Si el usuario viene del Planner, pre-rellenar capital + mostrar hint de allocation
+    const recRaw = localStorage.getItem('plannerRecommendation');
+    if (recRaw) {
+      try {
+        const rec = JSON.parse(recRaw);
+        // Solo válido si llegó hace menos de 10 minutos
+        if (Date.now() - rec.timestamp < 10 * 60 * 1000) {
+          if (rec.capitalInvertible > 0) setCapital(rec.capitalInvertible);
+          setPlannerHint({
+            capital: rec.capitalInvertible,
+            equity:  rec.assetAllocation.equity,
+            bonds:   rec.assetAllocation.bonds + rec.assetAllocation.realEstate + rec.assetAllocation.commodities,
+          });
+        }
+        localStorage.removeItem('plannerRecommendation');
+      } catch { /* JSON inválido */ }
+    }
   }, []);
 
   function aplicarPlantilla(t: PortfolioTemplate) {
@@ -146,6 +165,42 @@ export default function OptimizerPage() {
           Maximización del ratio Sharpe · Frontera Eficiente de Markowitz
         </p>
       </div>
+
+      {/* Banner del Planner (si llega recomendación) */}
+      {plannerHint && (
+        <div style={{
+          ...CARD,
+          marginBottom: '20px',
+          backgroundColor: 'rgba(79, 134, 247, 0.08)',
+          border: '1px solid rgba(79, 134, 247, 0.35)',
+          borderLeft: '3px solid var(--accent)',
+          display: 'flex', alignItems: 'flex-start', gap: '14px',
+        }}>
+          <div style={{ fontSize: '20px', lineHeight: 1, paddingTop: '2px' }}>📋</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: 'var(--accent)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+              Recomendación del Planificador aplicada
+            </div>
+            <div style={{ color: 'var(--text)', fontSize: '13px', lineHeight: 1.6 }}>
+              Capital invertible: <strong>{plannerHint.capital.toLocaleString('es-ES')} €</strong>.
+              Asset allocation sugerida: <strong>{plannerHint.equity.toFixed(0)} %</strong> renta variable +
+              <strong> {plannerHint.bonds.toFixed(0)} %</strong> renta fija/alternativos.
+            </div>
+            <div style={{ color: 'var(--text-2)', fontSize: '11px', marginTop: '4px' }}>
+              Para respetar la asignación, elige plantillas con BND/AGG/TLT (renta fija) o un mix con ETFs como SPY+BND.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPlannerHint(null)}
+            style={{
+              background: 'none', border: 'none', color: 'var(--text-3)',
+              cursor: 'pointer', fontSize: '16px', padding: '0 4px',
+            }}
+            title="Ocultar"
+          >×</button>
+        </div>
+      )}
 
       {/* Plantillas según perfil */}
       {(() => {
