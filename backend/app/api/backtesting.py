@@ -13,6 +13,8 @@ class BacktestRequest(BaseModel):
     periodo: str = "5y"
     fecha_inicio: str | None = None
     fecha_fin: str | None = None
+    rebalanceo: str = "ninguno"      # ninguno | mensual | trimestral | semestral | anual
+    comision_pct: float = 0.0        # comisión por operación (%) — 0.1 ≈ broker low-cost
 
     @field_validator("pesos")
     @classmethod
@@ -44,6 +46,8 @@ def run_backtest(payload: BacktestRequest):
             periodo=payload.periodo,
             fecha_inicio=payload.fecha_inicio,
             fecha_fin=payload.fecha_fin,
+            rebalanceo=payload.rebalanceo,
+            comision_pct=payload.comision_pct,
         )
         resultado = engine.ejecutar()
         crisis = engine.analizar_crisis()
