@@ -19,6 +19,7 @@ class OptimizeRequest(BaseModel):
     tickers: list[str]
     capital: float
     max_volatilidad: float
+    metodo: str = "markowitz"   # markowitz | min_variance | risk_parity | equal_weight
 
 
 class GuardarCarteraRequest(BaseModel):
@@ -52,6 +53,7 @@ def optimize_portfolio(payload: OptimizeRequest):
         result = opt.optimizar(
             max_volatilidad=payload.max_volatilidad,
             capital=payload.capital,
+            metodo=payload.metodo,
         )
     except DataSourceError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))

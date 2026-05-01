@@ -45,10 +45,18 @@ function inferPerfilFromVol(vol: number | null): PerfilRiesgo {
   return 'agresivo';
 }
 
+const PERFIL_TO_VOL: Record<PerfilRiesgo, number> = {
+  conservador: 15,
+  moderado:    25,
+  agresivo:    40,
+};
+
 export default function PlannerPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [saved, setSaved]             = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg]   = useState<{ ok: boolean; text: string } | null>(null);
 
   const [liquidez,    setLiquidez]    = useState<string>('20000');
   const [gastos,      setGastos]      = useState<string>('1500');
@@ -98,10 +106,30 @@ export default function PlannerPage() {
     return filas;
   }, [plan]);
 
-  async function aplicarAlOptimizador() {
-    // 1) Persistir el capital invertible en el perfil
+  async function guardarPerfilInversor() {
+    setSavingProfile(true);
+    setProfileMsg(null);
     try {
-      await updateProfile({ capital_base: plan.capitalInvertible });
+      await updateProfile({
+        capital_base:      plan.capitalInvertible,
+        tolerancia_riesgo: PERFIL_TO_VOL[perfil],
+      });
+      setProfileMsg({ ok: true, text: 'Perfil guardado correctamente.' });
+    } catch {
+      setProfileMsg({ ok: false, text: 'No se pudo guardar el perfil.' });
+    } finally {
+      setSavingProfile(false);
+      setTimeout(() => setProfileMsg(null), 3000);
+    }
+  }
+
+  async function aplicarAlOptimizador() {
+    // 1) Persistir capital + tolerancia en el perfil
+    try {
+      await updateProfile({
+        capital_base:      plan.capitalInvertible,
+        tolerancia_riesgo: PERFIL_TO_VOL[perfil],
+      });
     } catch { /* sin bloquear */ }
     // 2) Pasar la recomendación de asset allocation a Optimizer vía localStorage
     localStorage.setItem('plannerRecommendation', JSON.stringify({
@@ -352,24 +380,52 @@ export default function PlannerPage() {
             )}
           </div>
 
-          {/* CTA al optimizador */}
-          <button
-            onClick={aplicarAlOptimizador}
-            disabled={plan.capitalInvertible <= 0 || saved}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: plan.capitalInvertible <= 0 ? 'var(--raised)' : 'var(--accent)',
-              color: plan.capitalInvertible <= 0 ? 'var(--text-3)' : '#fff',
-              border: 'none', borderRadius: 'var(--radius-sm)',
-              fontSize: '14px', fontWeight: 600,
-              cursor: plan.capitalInvertible <= 0 ? 'not-allowed' : 'pointer',
-              alignSelf: 'flex-start',
-            }}
-          >
-            {saved ? '✓ Aplicado, abriendo Optimizador…' :
-             plan.capitalInvertible <= 0 ? 'Tu liquidez no cubre la emergencia' :
-             `→ Aplicar al Optimizador (${eur(plan.capitalInvertible)} €)`}
-          </button>
+          {/* Mensaje de guardado */}
+          {profileMsg && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
+              backgroundColor: profileMsg.ok ? 'rgba(14,168,117,0.1)' : 'rgba(232,64,64,0.1)',
+              border: `1px solid ${profileMsg.ok ? 'rgba(14,168,117,0.3)' : 'rgba(232,64,64,0.3)'}`,
+              color: profileMsg.ok ? 'var(--green)' : 'var(--red)',
+            }}>
+              {profileMsg.ok ? '✓' : '⚠'} {profileMsg.text}
+            </div>
+          )}
+
+          {/* CTAs */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              onClick={guardarPerfilInversor}
+              disabled={plan.capitalInvertible <= 0 || savingProfile}
+              style={{
+                padding: '11px 20px',
+                backgroundColor: 'transparent',
+                color: plan.capitalInvertible <= 0 ? 'var(--text-3)' : 'var(--green)',
+                border: `1px solid ${plan.capitalInvertible <= 0 ? 'var(--border)' : 'rgba(14,168,117,0.4)'}`,
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '13px', fontWeight: 600,
+                cursor: plan.capitalInvertible <= 0 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {savingProfile ? 'Guardando…' : '💾 Guardar como mi perfil'}
+            </button>
+            <button
+              onClick={aplicarAlOptimizador}
+              disabled={plan.capitalInvertible <= 0 || saved}
+              style={{
+                padding: '11px 22px',
+                backgroundColor: plan.capitalInvertible <= 0 ? 'var(--raised)' : 'var(--accent)',
+                color: plan.capitalInvertible <= 0 ? 'var(--text-3)' : '#fff',
+                border: 'none', borderRadius: 'var(--radius-sm)',
+                fontSize: '13px', fontWeight: 600,
+                cursor: plan.capitalInvertible <= 0 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saved ? '✓ Aplicado, abriendo Optimizador…' :
+               plan.capitalInvertible <= 0 ? 'Tu liquidez no cubre la emergencia' :
+               `→ Aplicar al Optimizador (${eur(plan.capitalInvertible)} €)`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

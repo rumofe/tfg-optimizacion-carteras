@@ -3,7 +3,7 @@ import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis, ReferenceDot,
 } from 'recharts';
-import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult, ParetoPoint } from '../services/api';
+import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult, ParetoPoint, OptimizationMethod } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
 import SliderInput from '../components/SliderInput';
 import { COLORS, CARD, INPUT, LABEL } from '../styles';
@@ -103,6 +103,7 @@ export default function OptimizerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OptimizeResult | null>(null);
+  const [metodo, setMetodo] = useState<OptimizationMethod>('markowitz');
   const [submittedCapital, setSubmittedCapital] = useState(0);
   const [submittedTickers, setSubmittedTickers] = useState<string[]>([]);
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -115,7 +116,7 @@ export default function OptimizerPage() {
     if (tickers.length < 2) { setError('Añade al menos 2 activos para optimizar la cartera.'); return; }
     setError(''); setResult(null); setShowSaveForm(false); setSaveMsg(null); setLoading(true);
     try {
-      const { data } = await optimizePortfolio(tickers, capital, maxVol / 100);
+      const { data } = await optimizePortfolio(tickers, capital, maxVol / 100, metodo);
       setResult(data); setSubmittedTickers(tickers); setSubmittedCapital(capital);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -286,6 +287,38 @@ export default function OptimizerPage() {
 
       {/* Form */}
       <form onSubmit={handleOptimize} style={{ ...CARD, marginBottom: '28px' }}>
+
+        {/* Selector de método de optimización */}
+        <div style={{ marginBottom: '18px' }}>
+          <label style={LABEL}>Método de optimización</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            {([
+              { id: 'markowitz',    label: 'Sharpe (Markowitz)', descr: 'Maximiza retorno/riesgo ajustado',    color: 'var(--accent)' },
+              { id: 'min_variance', label: 'Mínima varianza',    descr: 'La cartera con menos volatilidad',     color: 'var(--green)'  },
+              { id: 'risk_parity',  label: 'Risk Parity',         descr: 'Cada activo aporta igual riesgo',     color: 'var(--purple)' },
+              { id: 'equal_weight', label: 'Equal Weight (1/N)',  descr: 'Pesos iguales, sin optimización',     color: 'var(--amber)'  },
+            ] as const).map(({ id, label, descr, color }) => {
+              const active = metodo === id;
+              return (
+                <button
+                  key={id} type="button" onClick={() => setMetodo(id)}
+                  style={{
+                    padding: '10px 12px', textAlign: 'left',
+                    backgroundColor: active ? 'var(--raised)' : 'transparent',
+                    border: `1px solid ${active ? color : 'var(--border)'}`,
+                    borderLeft: `3px solid ${active ? color : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ color: active ? color : 'var(--text)', fontSize: '12px', fontWeight: 600, marginBottom: '3px' }}>{label}</div>
+                  <div style={{ color: 'var(--text-3)', fontSize: '10px', lineHeight: 1.4 }}>{descr}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div style={{ marginBottom: '18px' }}>
           <label style={LABEL}>Activos de la cartera</label>
           <TickerSearch selected={tickers} onChange={setTickers} maxItems={10} />
@@ -309,47 +342,68 @@ export default function OptimizerPage() {
             formatMax="€ 500 K"
           />
           <div>
-            <SliderInput
-              label="Volatilidad máxima"
-              value={maxVol}
-              onChange={setMaxVol}
-              min={10} max={60} step={1}
-              suffix="%"
-              formatDisplay={(v) => v.toFixed(0)}
-              formatMin="10%"
-              formatMax="60%"
-            />
-            {/* Presets */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-              {[
-                { label: 'Conservador', vol: 15, color: 'var(--green)'  },
-                { label: 'Moderado',    vol: 25, color: 'var(--accent)' },
-                { label: 'Agresivo',    vol: 40, color: 'var(--amber)'  },
-                { label: 'Sin límite',  vol: 55, color: 'var(--red)'    },
-              ].map(({ label, vol, color }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => setMaxVol(vol)}
-                  style={{
-                    padding: '3px 10px',
-                    backgroundColor: maxVol === vol ? color : 'var(--raised)',
-                    color: maxVol === vol ? '#fff' : 'var(--text-2)',
-                    border: `1px solid ${maxVol === vol ? color : 'var(--border)'}`,
-                    borderRadius: '20px',
-                    fontSize: '11px',
-                    fontWeight: maxVol === vol ? 600 : 400,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {label} {vol}%
-                </button>
-              ))}
-            </div>
-            <p style={{ color: 'var(--text-2)', fontSize: '10px', margin: '6px 0 0' }}>
-              Referencia: S&P 500 ≈ 15–18 % anual · acciones individuales 25–40 %
-            </p>
+            {metodo === 'markowitz' ? (
+              <>
+                <SliderInput
+                  label="Volatilidad máxima"
+                  value={maxVol}
+                  onChange={setMaxVol}
+                  min={10} max={60} step={1}
+                  suffix="%"
+                  formatDisplay={(v) => v.toFixed(0)}
+                  formatMin="10%"
+                  formatMax="60%"
+                />
+                {/* Presets */}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Conservador', vol: 15, color: 'var(--green)'  },
+                    { label: 'Moderado',    vol: 25, color: 'var(--accent)' },
+                    { label: 'Agresivo',    vol: 40, color: 'var(--amber)'  },
+                    { label: 'Sin límite',  vol: 55, color: 'var(--red)'    },
+                  ].map(({ label, vol, color }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setMaxVol(vol)}
+                      style={{
+                        padding: '3px 10px',
+                        backgroundColor: maxVol === vol ? color : 'var(--raised)',
+                        color: maxVol === vol ? '#fff' : 'var(--text-2)',
+                        border: `1px solid ${maxVol === vol ? color : 'var(--border)'}`,
+                        borderRadius: '20px',
+                        fontSize: '11px',
+                        fontWeight: maxVol === vol ? 600 : 400,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {label} {vol}%
+                    </button>
+                  ))}
+                </div>
+                <p style={{ color: 'var(--text-2)', fontSize: '10px', margin: '6px 0 0' }}>
+                  Referencia: S&P 500 ≈ 15–18 % anual · acciones individuales 25–40 %
+                </p>
+              </>
+            ) : (
+              <div style={{
+                padding: '14px 16px',
+                backgroundColor: 'var(--raised)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px dashed var(--border)',
+                fontSize: '11px',
+                color: 'var(--text-2)',
+                lineHeight: 1.5,
+              }}>
+                <div style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+                  Sin restricción de volatilidad
+                </div>
+                {metodo === 'min_variance' && '"Mínima varianza" busca la cartera con menor volatilidad posible — no necesita un límite, lo minimiza directamente.'}
+                {metodo === 'risk_parity' && '"Risk Parity" reparte el riesgo equitativamente entre activos. La volatilidad resultante depende de la cartera, no se restringe.'}
+                {metodo === 'equal_weight' && '"Equal Weight" asigna 1/N a cada activo. Sin optimización, sin restricciones — baseline ingenuo.'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -379,8 +433,27 @@ export default function OptimizerPage() {
 
       {result && (
         <>
+          {/* Badge del método usado */}
+          {result.metodo && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '6px 14px', backgroundColor: 'var(--raised)',
+              border: '1px solid var(--border)', borderRadius: '20px',
+              fontSize: '11px', color: 'var(--text-2)',
+              marginBottom: '14px', fontWeight: 600,
+            }}>
+              <span style={{ color: 'var(--text-3)' }}>Método</span>
+              <span style={{ color: 'var(--text)' }}>
+                {result.metodo === 'markowitz'    ? 'Sharpe (Markowitz)'    :
+                 result.metodo === 'min_variance' ? 'Mínima varianza'         :
+                 result.metodo === 'risk_parity'  ? 'Risk Parity'             :
+                 'Equal Weight (1/N)'}
+              </span>
+            </div>
+          )}
+
           {/* Métricas principales */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '14px' }}>
             {[
               { label: 'Retorno Esperado', value: pct(result.retorno_esperado), color: 'var(--green)',  border: 'var(--green)' },
               { label: 'Volatilidad',       value: pct(result.volatilidad),      color: 'var(--amber)',  border: 'var(--amber)' },
@@ -397,6 +470,33 @@ export default function OptimizerPage() {
               </div>
             ))}
           </div>
+
+          {/* Métricas de calidad de la cartera (concentración / diversificación) */}
+          {result.diversification_ratio != null && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
+              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--purple)' }}>
+                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Diversification ratio</div>
+                <div style={{ color: 'var(--purple)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.diversification_ratio!.toFixed(2)}</div>
+                <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
+                  Choueifaty: ratio entre vol media ponderada y vol cartera. {'>'} 1 indica diversificación efectiva.
+                </div>
+              </div>
+              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid #22d3ee' }}>
+                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Concentración (HHI)</div>
+                <div style={{ color: '#22d3ee', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.concentracion_hhi!.toFixed(3)}</div>
+                <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
+                  Herfindahl-Hirschman: {'<'} 0.15 → diversificada · {'>'} 0.25 → concentrada.
+                </div>
+              </div>
+              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--amber)' }}>
+                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Activos efectivos</div>
+                <div style={{ color: 'var(--amber)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.activos_efectivos!.toFixed(1)}</div>
+                <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
+                  Nº equivalente de activos con peso uniforme. Alto = diversificado, bajo = concentrado.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Pie + tabla */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>

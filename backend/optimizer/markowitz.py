@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 RISK_FREE_RATE = 0.02  # 2% anual, tasa libre de riesgo
 N_STARTS = 20          # puntos de inicio aleatorios para el multi-start
 
+# Métodos de optimización soportados.
+# - markowitz   : Mean-Variance clásico, max Sharpe con restricción de volatilidad
+# - min_variance: Cartera de mínima varianza global (sin restricción de retorno)
+# - risk_parity : Equal Risk Contribution (Maillard-Roncalli 2010)
+# - equal_weight: Asignación 1/N (baseline ingenuo, paper Bessler-Wolff 2017)
+METODOS_SOPORTADOS = ("markowitz", "min_variance", "risk_parity", "equal_weight")
+
 
 class MarkowitzOptimizer:
     def __init__(self, tickers: list[str], period: str = "2y"):
@@ -50,6 +57,55 @@ class MarkowitzOptimizer:
             return result.x
         # Fallback analítico si falla: equiponderado
         return np.ones(n) / n
+
+    def _equal_weight(self) -> np.ndarray:
+        """1/N portfolio (DeMiguel et al. 2009): baseline naive sin optimización."""
+        n = len(self.tickers)
+        return np.ones(n) / n
+
+    def _risk_parity(self, cov_matrix: np.ndarray) -> np.ndarray:
+        """
+        Equal Risk Contribution (Maillard, Roncalli & Teïletche 2010).
+
+        Cada activo aporta la misma contribución al riesgo total:
+            RC_i = w_i · (Σw)_i / σ_p   ∀ i
+
+        En vez de la formulación con división (numéricamente delicada),
+        minimizamos la suma de cuadrados de diferencias entre las
+        contribuciones marginales no normalizadas (w_i · (Σw)_i):
+
+            f(w) = Σ_{i<j} ( w_i (Σw)_i − w_j (Σw)_j )²
+
+        Solver: SLSQP con multi-start (equiponderado + 5 puntos dirichlet).
+        Esta formulación equivale al método iterativo del paper original
+        pero converge mejor con scipy.optimize.
+        """
+        n = len(self.tickers)
+
+        def f(w: np.ndarray) -> float:
+            sigma_w = cov_matrix @ w
+            rc = w * sigma_w  # contribuciones marginales (sin normalizar)
+            mean = rc.mean()
+            return float(np.sum((rc - mean) ** 2))
+
+        bounds = [(1e-6, 1.0)] * n  # evitamos w=0 que rompería derivabilidad
+        constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+        rng = np.random.default_rng(42)
+        starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(5)]
+
+        best = None
+        for w0 in starts:
+            res = minimize(
+                f, w0, method="SLSQP",
+                bounds=bounds, constraints=constraints,
+                options={"ftol": 1e-12, "maxiter": 2000},
+            )
+            if res.success and (best is None or res.fun < best.fun):
+                best = res
+        if best is None:
+            logger.warning("Risk parity: ningún start convergió, usando equiponderado.")
+            return self._equal_weight()
+        return best.x
 
     def _portfolio_sortino(self, weights: np.ndarray, mean_returns: np.ndarray) -> float:
         """
@@ -174,21 +230,12 @@ class MarkowitzOptimizer:
 
         return frontier
 
-    def optimizar(self, max_volatilidad: float, capital: float) -> dict:
+    def _max_sharpe(self, cov_matrix: np.ndarray, mean_returns: np.ndarray, max_volatilidad: float) -> np.ndarray:
         """
-        Maximiza el Sharpe Ratio sujeto a:
-          - suma de pesos = 1
-          - todos los pesos en [0, 1]
-          - volatilidad anualizada <= max_volatilidad
-
-        Estrategia robusta:
-          1. Multi-start SLSQP con pesos equiponderados + N puntos aleatorios.
-          2. Si ninguno converge, usa el portfolio de mínima varianza.
-          3. Si min_vol > max_volatilidad, lanza ValueError con mensaje claro.
+        Markowitz clásico: maximiza Sharpe Ratio con restricción de volatilidad.
+        Multi-start SLSQP. Devuelve los pesos óptimos.
         """
         n = len(self.tickers)
-        cov_matrix = self.calcular_matriz_covarianza().values
-        mean_returns = self.returns.mean().values * 252
 
         def neg_sharpe(weights: np.ndarray) -> float:
             port_return = float(np.dot(weights, mean_returns))
@@ -203,7 +250,6 @@ class MarkowitzOptimizer:
         ]
         bounds = [(0.0, 1.0)] * n
 
-        # --- Multi-start: equiponderado + N puntos aleatorios con semilla fija ---
         rng = np.random.default_rng(42)
         starting_points = [np.ones(n) / n] + [
             rng.dirichlet(np.ones(n)) for _ in range(N_STARTS)
@@ -211,20 +257,17 @@ class MarkowitzOptimizer:
 
         best_result = None
         best_neg_sharpe = np.inf
-
         for w0 in starting_points:
             res = minimize(
-                neg_sharpe, w0,
-                method="SLSQP",
-                bounds=bounds,
-                constraints=constraints,
+                neg_sharpe, w0, method="SLSQP",
+                bounds=bounds, constraints=constraints,
                 options={"ftol": 1e-9, "maxiter": 1000},
             )
             if res.success and res.fun < best_neg_sharpe:
                 best_neg_sharpe = res.fun
                 best_result = res
 
-        # --- Fallback: portfolio de mínima varianza ---
+        # Fallback: mínima varianza si no converge ningún start
         if best_result is None:
             logger.warning(
                 "Multi-start falló para %s con max_vol=%.2f. Intentando mínima varianza.",
@@ -232,7 +275,6 @@ class MarkowitzOptimizer:
             )
             w_minvar = self._min_varianza(cov_matrix)
             min_vol = self._portfolio_vol(w_minvar, cov_matrix)
-
             if min_vol > max_volatilidad:
                 raise ValueError(
                     f"La volatilidad mínima alcanzable con estos activos es "
@@ -240,16 +282,59 @@ class MarkowitzOptimizer:
                     f"{max_volatilidad * 100:.1f}%. Aumenta la volatilidad máxima "
                     f"o elige activos menos volátiles."
                 )
+            return w_minvar
+        return best_result.x
 
-            # Usar mínima varianza como solución
-            weights = w_minvar
-            logger.info("Usando portfolio de mínima varianza (vol=%.2f%%)", min_vol * 100)
-        else:
-            weights = best_result.x
+    def optimizar(
+        self,
+        max_volatilidad: float,
+        capital: float,
+        metodo: str = "markowitz",
+    ) -> dict:
+        """
+        Despacha el cálculo según el método de optimización elegido.
+
+        Métodos:
+          - 'markowitz':    max Sharpe con restricción de volatilidad (clásico)
+          - 'min_variance': mínima varianza global (sin restricción de retorno)
+          - 'risk_parity':  Equal Risk Contribution — cada activo aporta el mismo riesgo
+          - 'equal_weight': 1/N — baseline naive sin optimización
+
+        Devuelve siempre los mismos campos: pesos, retorno, volatilidad, sharpe,
+        frontera eficiente y frontera de Pareto (estas últimas son del marco
+        Markowitz, se incluyen como referencia).
+        """
+        if metodo not in METODOS_SOPORTADOS:
+            raise ValueError(
+                f"Método desconocido: '{metodo}'. Opciones: {METODOS_SOPORTADOS}"
+            )
+
+        cov_matrix = self.calcular_matriz_covarianza().values
+        mean_returns = self.returns.mean().values * 252
+
+        if metodo == "markowitz":
+            weights = self._max_sharpe(cov_matrix, mean_returns, max_volatilidad)
+        elif metodo == "min_variance":
+            weights = self._min_varianza(cov_matrix)
+        elif metodo == "risk_parity":
+            weights = self._risk_parity(cov_matrix)
+        elif metodo == "equal_weight":
+            weights = self._equal_weight()
+        else:  # pragma: no cover (controlado arriba)
+            raise ValueError(metodo)
 
         port_return = float(np.dot(weights, mean_returns))
         port_vol = self._portfolio_vol(weights, cov_matrix)
         sharpe = (port_return - RISK_FREE_RATE) / port_vol if port_vol > 1e-10 else 0.0
+
+        # Métricas adicionales útiles para comparar métodos
+        # - Diversificación (Choueifaty): ratio entre vol ponderada y vol cartera
+        individual_vols = np.sqrt(np.diag(cov_matrix))
+        weighted_avg_vol = float(np.dot(weights, individual_vols))
+        diversification_ratio = weighted_avg_vol / port_vol if port_vol > 1e-10 else 1.0
+        # - Concentración (Herfindahl-Hirschman): 1/N ≤ HHI ≤ 1
+        hhi = float(np.sum(weights ** 2))
+        n_efectivos = 1.0 / hhi if hhi > 1e-10 else float(len(self.tickers))
 
         activos_info = {
             t: {
@@ -260,10 +345,14 @@ class MarkowitzOptimizer:
         }
 
         return {
+            "metodo": metodo,
             "pesos": {t: float(w) for t, w in zip(self.tickers, weights)},
             "retorno_esperado": port_return,
             "volatilidad": port_vol,
             "sharpe_ratio": float(sharpe),
+            "diversification_ratio": round(float(diversification_ratio), 4),
+            "concentracion_hhi": round(hhi, 4),
+            "activos_efectivos": round(n_efectivos, 2),
             "activos_info": activos_info,
             "frontera": self.calcular_frontera(),
             "pareto": self.frontera_pareto(),
