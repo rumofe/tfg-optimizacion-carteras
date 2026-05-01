@@ -1,69 +1,43 @@
 import { useState, useEffect } from 'react';
-import { getProfile, updateProfile, UserProfile } from '../services/api';
-import { CARD, LABEL, INPUT } from '../styles';
+import { useNavigate } from 'react-router-dom';
+import { getProfile, UserProfile } from '../services/api';
+import { CARD } from '../styles';
 
-const PERFILES = [
-  { id: 'conservador',   label: 'Conservador',   vol: 15,   desc: 'Baja exposición al riesgo · ≤ 15 % vol. (p. ej. mix renta fija + defensivos)' },
-  { id: 'moderado',      label: 'Moderado',       vol: 25,   desc: 'Equilibrio riesgo-rentabilidad · ≤ 25 % vol. (rango S&P 500 histórico)' },
-  { id: 'agresivo',      label: 'Agresivo',       vol: 40,   desc: 'Alta exposición a renta variable · ≤ 40 % vol. (acciones growth / concentrado)' },
-  { id: 'personalizado', label: 'Personalizado',  vol: null, desc: 'Define tu propio límite de volatilidad' },
-] as const;
+interface PerfilLabel {
+  label: string;
+  color: string;
+  desc: string;
+}
 
-type PerfilId = (typeof PERFILES)[number]['id'];
-
-const ACCENT_COLORS: Record<PerfilId, string> = {
-  conservador:   'var(--green)',
-  moderado:      'var(--accent)',
-  agresivo:      'var(--red)',
-  personalizado: 'var(--purple)',
-};
-
-function inferPerfil(vol: number | null): PerfilId {
-  if (vol === 15) return 'conservador';
-  if (vol === 25) return 'moderado';
-  if (vol === 40) return 'agresivo';
-  return 'personalizado';
+function inferPerfilLabel(vol: number | null): PerfilLabel {
+  if (vol == null) return {
+    label: 'Sin definir', color: 'var(--text-3)',
+    desc: 'Visita el Planificador para configurar tu perfil de inversor.',
+  };
+  if (vol <= 17) return {
+    label: 'Conservador', color: 'var(--green)',
+    desc: 'Baja exposición al riesgo · ≤ 15 % vol.',
+  };
+  if (vol <= 30) return {
+    label: 'Moderado', color: 'var(--accent)',
+    desc: 'Equilibrio riesgo-rentabilidad · ≤ 25 % vol.',
+  };
+  return {
+    label: 'Agresivo', color: 'var(--amber)',
+    desc: 'Alta exposición a renta variable · ≤ 40 % vol.',
+  };
 }
 
 export default function ProfilePage() {
-  const [profile, setProfile]           = useState<UserProfile | null>(null);
-  const [capital, setCapital]           = useState<string>('');
-  const [perfilId, setPerfilId]         = useState<PerfilId>('moderado');
-  const [volPersonal, setVolPersonal]   = useState<string>('25');
-  const [loading, setLoading]           = useState(true);
-  const [saving, setSaving]             = useState(false);
-  const [msg, setMsg]                   = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getProfile()
-      .then(({ data }) => {
-        setProfile(data);
-        setCapital(data.capital_base != null ? String(data.capital_base) : '');
-        const pid = inferPerfil(data.tolerancia_riesgo);
-        setPerfilId(pid);
-        if (pid === 'personalizado' && data.tolerancia_riesgo != null) {
-          setVolPersonal(String(data.tolerancia_riesgo));
-        }
-      })
+      .then(({ data }) => setProfile(data))
       .finally(() => setLoading(false));
   }, []);
-
-  async function handleSave() {
-    setSaving(true);
-    setMsg(null);
-    try {
-      const preset = PERFILES.find((p) => p.id === perfilId);
-      const tol = preset?.vol != null ? preset.vol : parseFloat(volPersonal) || null;
-      const cap = capital !== '' ? parseFloat(capital) : null;
-      const { data } = await updateProfile({ capital_base: cap, tolerancia_riesgo: tol });
-      setProfile(data);
-      setMsg({ type: 'ok', text: 'Perfil guardado correctamente.' });
-    } catch {
-      setMsg({ type: 'err', text: 'Error al guardar el perfil. Inténtalo de nuevo.' });
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -73,141 +47,130 @@ export default function ProfilePage() {
     );
   }
 
+  const perfilLabel = inferPerfilLabel(profile?.tolerancia_riesgo ?? null);
+  const capitalSet  = profile?.capital_base != null && profile.capital_base > 0;
+  const perfilSet   = profile?.tolerancia_riesgo != null;
+
   return (
     <div style={{ maxWidth: '600px' }}>
       {/* Header */}
       <h1 style={{ color: 'var(--text)', fontSize: '20px', fontWeight: 700, margin: '0 0 6px' }}>
-        Perfil de Inversor
+        Mi cuenta
       </h1>
       <p style={{ color: 'var(--text-2)', fontSize: '13px', margin: '0 0 28px' }}>
-        Configura tu capital de referencia y tu tolerancia al riesgo. Estos valores
-        se usarán como punto de partida en el Optimizador.
+        Resumen de tu cuenta y de tu perfil de inversor. Para cambiar capital, perfil de riesgo
+        o tu situación financiera, ve al Planificador.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        {/* Cuenta */}
+        {/* ── Cuenta ── */}
         <div style={CARD}>
-          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '10px' }}>
+          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
             Cuenta
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '36px', height: '36px', borderRadius: '50%',
+              width: '40px', height: '40px', borderRadius: '50%',
               backgroundColor: 'var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px', fontWeight: 700, color: '#fff', flexShrink: 0,
+              fontSize: '15px', fontWeight: 700, color: '#fff', flexShrink: 0,
             }}>
               {profile?.email?.[0]?.toUpperCase() ?? '?'}
             </div>
             <div>
               <div style={{ color: 'var(--text)', fontSize: '14px', fontWeight: 600 }}>{profile?.email}</div>
-              <div style={{ color: 'var(--text-3)', fontSize: '11px' }}>Inversor registrado</div>
+              <div style={{ color: 'var(--text-3)', fontSize: '11px', marginTop: '2px' }}>Inversor registrado</div>
             </div>
           </div>
         </div>
 
-        {/* Capital */}
+        {/* ── Perfil de inversor (resumen) ── */}
         <div style={CARD}>
-          <label style={LABEL}>Capital de referencia (€)</label>
-          <div style={{ position: 'relative' }}>
-            <span style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--text-2)', fontSize: '14px', pointerEvents: 'none',
-            }}>€</span>
-            <input
-              type="number" min={0} step={100}
-              value={capital}
-              onChange={(e) => setCapital(e.target.value)}
-              placeholder="10000"
-              style={{ ...INPUT, paddingLeft: '28px' }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-              onBlur={(e)  => (e.currentTarget.style.borderColor = 'var(--border)')}
-            />
-          </div>
-          <div style={{ color: 'var(--text-3)', fontSize: '11px', marginTop: '6px' }}>
-            Valor orientativo que se pre-rellena en el Optimizador.
-          </div>
-        </div>
-
-        {/* Perfil de riesgo */}
-        <div style={CARD}>
-          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '14px' }}>
-            Perfil de riesgo
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            {PERFILES.map((p) => {
-              const active = perfilId === p.id;
-              const color  = ACCENT_COLORS[p.id];
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setPerfilId(p.id)}
-                  style={{
-                    padding: '14px 16px',
-                    backgroundColor: active ? 'var(--raised)' : 'transparent',
-                    border: `1px solid ${active ? color : 'var(--border)'}`,
-                    borderLeft: `3px solid ${active ? color : 'var(--border)'}`,
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer', textAlign: 'left',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ color: active ? color : 'var(--text)', fontSize: '13px', fontWeight: 600, marginBottom: '3px' }}>
-                    {p.label}
-                  </div>
-                  <div style={{ color: 'var(--text-3)', fontSize: '11px', lineHeight: 1.4 }}>
-                    {p.desc}
-                  </div>
-                </button>
-              );
-            })}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Perfil de inversor
+            </div>
+            <button
+              onClick={() => navigate('/dashboard/planner')}
+              style={{
+                padding: '6px 14px', fontSize: '11px', fontWeight: 600,
+                backgroundColor: 'transparent', color: 'var(--accent)',
+                border: '1px solid rgba(79, 134, 247, 0.4)',
+                borderRadius: '14px', cursor: 'pointer',
+              }}
+            >
+              ✎ Editar en el Planificador
+            </button>
           </div>
 
-          {/* Input manual si Personalizado */}
-          {perfilId === 'personalizado' && (
-            <div style={{ marginTop: '14px' }}>
-              <label style={LABEL}>Volatilidad máxima (%)</label>
-              <input
-                type="number" min={1} max={100} step={1}
-                value={volPersonal}
-                onChange={(e) => setVolPersonal(e.target.value)}
-                style={INPUT}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--purple)')}
-                onBlur={(e)  => (e.currentTarget.style.borderColor = 'var(--border)')}
-              />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            {/* Capital de referencia */}
+            <div style={{
+              padding: '14px 16px', backgroundColor: 'var(--raised)',
+              borderRadius: 'var(--radius-sm)',
+              borderLeft: `3px solid ${capitalSet ? 'var(--green)' : 'var(--border)'}`,
+            }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
+                Capital de referencia
+              </div>
+              {capitalSet ? (
+                <div style={{ color: 'var(--green)', fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>
+                  {profile!.capital_base!.toLocaleString('es-ES', { maximumFractionDigits: 0 })} €
+                </div>
+              ) : (
+                <div style={{ color: 'var(--text-3)', fontSize: '13px', fontStyle: 'italic' }}>
+                  No definido
+                </div>
+              )}
+              <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '6px', lineHeight: 1.5 }}>
+                Capital invertible recomendado por el Planificador.
+              </div>
+            </div>
+
+            {/* Perfil de riesgo */}
+            <div style={{
+              padding: '14px 16px', backgroundColor: 'var(--raised)',
+              borderRadius: 'var(--radius-sm)',
+              borderLeft: `3px solid ${perfilSet ? perfilLabel.color : 'var(--border)'}`,
+            }}>
+              <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
+                Perfil de riesgo
+              </div>
+              <div style={{ color: perfilLabel.color, fontSize: '22px', fontWeight: 700, lineHeight: 1 }}>
+                {perfilLabel.label}
+              </div>
+              {perfilSet && (
+                <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '6px' }}>
+                  Volatilidad máxima: {profile!.tolerancia_riesgo!.toFixed(0)} %
+                </div>
+              )}
+              <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '4px', lineHeight: 1.5 }}>
+                {perfilLabel.desc}
+              </div>
+            </div>
+          </div>
+
+          {(!capitalSet || !perfilSet) && (
+            <div style={{
+              marginTop: '14px', padding: '10px 12px',
+              backgroundColor: 'rgba(232, 166, 64, 0.08)',
+              border: '1px solid rgba(232, 166, 64, 0.3)',
+              borderRadius: '6px', fontSize: '11px', color: 'var(--amber)',
+              lineHeight: 1.5,
+            }}>
+              ⚠ Aún no has configurado tu perfil de inversor.
+              {' '}
+              <span
+                onClick={() => navigate('/dashboard/planner')}
+                style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Hazlo en el Planificador
+              </span>
+              {' '}para que el Optimizador y las plantillas se ajusten a tu situación.
             </div>
           )}
         </div>
-
-        {/* Guardar */}
-        {msg && (
-          <div style={{
-            padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: '13px',
-            backgroundColor: msg.type === 'ok' ? 'rgba(14,168,117,0.1)' : 'rgba(232,64,64,0.1)',
-            border: `1px solid ${msg.type === 'ok' ? 'rgba(14,168,117,0.3)' : 'rgba(232,64,64,0.3)'}`,
-            color: msg.type === 'ok' ? 'var(--green)' : 'var(--red)',
-          }}>
-            {msg.type === 'ok' ? '✓' : '⚠'} {msg.text}
-          </div>
-        )}
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            padding: '11px 24px',
-            backgroundColor: 'var(--accent)',
-            border: 'none', borderRadius: 'var(--radius-sm)',
-            color: '#fff', fontSize: '14px', fontWeight: 600,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            opacity: saving ? 0.7 : 1,
-            transition: 'opacity 0.15s',
-            alignSelf: 'flex-start',
-          }}
-        >
-          {saving ? 'Guardando…' : 'Guardar perfil'}
-        </button>
 
       </div>
     </div>

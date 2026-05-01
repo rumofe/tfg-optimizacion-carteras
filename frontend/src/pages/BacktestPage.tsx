@@ -394,51 +394,57 @@ export default function BacktestPage() {
 
         {/* Rebalanceo + comisiones */}
         <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px dashed var(--border)' }}>
-          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-            Rebalanceo y comisiones <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· opcional · refleja la realidad de gestionar la cartera</span>
+          <div style={{ color: 'var(--text-2)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+            Rebalanceo y comisiones
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', alignItems: 'flex-end' }}>
-            <div>
-              <label style={LABEL}>Frecuencia de rebalanceo</label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {([
-                  { v: 'ninguno',    l: 'Ninguno' },
-                  { v: 'anual',      l: 'Anual' },
-                  { v: 'semestral',  l: 'Semestral' },
-                  { v: 'trimestral', l: 'Trimestral' },
-                  { v: 'mensual',    l: 'Mensual' },
-                ] as const).map(({ v, l }) => (
-                  <button
-                    key={v} type="button" onClick={() => setRebalanceo(v)}
-                    style={{
-                      padding: '6px 12px', fontSize: '12px',
-                      backgroundColor: rebalanceo === v ? 'var(--accent)' : 'var(--raised)',
-                      color: rebalanceo === v ? '#fff' : 'var(--text-2)',
-                      border: `1px solid ${rebalanceo === v ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: '6px', cursor: 'pointer',
-                      fontWeight: rebalanceo === v ? 600 : 400,
-                    }}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
+          <div style={{ color: 'var(--text-3)', fontSize: '11px', marginBottom: '14px' }}>
+            Opcional · simula el coste real de gestionar la cartera (rebalanceo periódico + comisiones por operación).
+          </div>
+
+          {/* Frecuencia */}
+          <div style={{ marginBottom: '14px' }}>
+            <label style={LABEL}>Frecuencia de rebalanceo</label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {([
+                { v: 'ninguno',    l: 'Ninguno' },
+                { v: 'anual',      l: 'Anual' },
+                { v: 'semestral',  l: 'Semestral' },
+                { v: 'trimestral', l: 'Trimestral' },
+                { v: 'mensual',    l: 'Mensual' },
+              ] as const).map(({ v, l }) => (
+                <button
+                  key={v} type="button" onClick={() => setRebalanceo(v)}
+                  style={{
+                    padding: '6px 14px', fontSize: '12px',
+                    backgroundColor: rebalanceo === v ? 'var(--accent)' : 'var(--raised)',
+                    color: rebalanceo === v ? '#fff' : 'var(--text-2)',
+                    border: `1px solid ${rebalanceo === v ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: '6px', cursor: 'pointer',
+                    fontWeight: rebalanceo === v ? 600 : 400,
+                  }}
+                >
+                  {l}
+                </button>
+              ))}
             </div>
-            <div>
+          </div>
+
+          {/* Comisión: solo si hay rebalanceo */}
+          {rebalanceo !== 'ninguno' && (
+            <div style={{ maxWidth: '320px' }}>
               <label style={LABEL}>Comisión por operación (%)</label>
               <input
                 type="number" min={0} max={5} step={0.05}
                 value={comisionPct}
                 onChange={(e) => setComisionPct(e.target.value)}
-                disabled={rebalanceo === 'ninguno'}
                 placeholder="0.10"
-                style={{ ...INPUT, opacity: rebalanceo === 'ninguno' ? 0.5 : 1 }}
+                style={INPUT}
               />
               <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '4px' }}>
-                Broker low-cost ≈ 0.05–0.10 % · Bancos tradicionales ≈ 0.30–0.50 %
+                Broker low-cost ≈ 0.05 – 0.10 % · Bancos tradicionales ≈ 0.30 – 0.50 %
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {error && (

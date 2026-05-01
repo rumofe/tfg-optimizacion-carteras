@@ -31,11 +31,19 @@ export function register(email: string, password: string) {
   return api.post<{ access_token: string }>('/auth/register', { email, password });
 }
 
-export function optimizePortfolio(tickers: string[], capital: number, maxVolatilidad: number) {
+export type OptimizationMethod = 'markowitz' | 'min_variance' | 'risk_parity' | 'equal_weight';
+
+export function optimizePortfolio(
+  tickers: string[],
+  capital: number,
+  maxVolatilidad: number,
+  metodo: OptimizationMethod = 'markowitz',
+) {
   return api.post<OptimizeResult>('/portfolio/optimize', {
     tickers,
     capital,
     max_volatilidad: maxVolatilidad,
+    metodo,
   });
 }
 
@@ -118,10 +126,14 @@ export interface ActivoInfo {
 }
 
 export interface OptimizeResult {
+  metodo?: OptimizationMethod;
   pesos: Record<string, number>;
   retorno_esperado: number;
   volatilidad: number;
   sharpe_ratio: number;
+  diversification_ratio?: number;
+  concentracion_hhi?: number;
+  activos_efectivos?: number;
   activos_info: Record<string, ActivoInfo>;
   frontera: FronteraPunto[];
   pareto: ParetoPoint[];
