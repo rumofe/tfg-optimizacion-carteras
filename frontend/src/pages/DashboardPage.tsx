@@ -8,8 +8,10 @@ const NAV_ITEMS = [
   { to: 'planner',   label: 'Planificador', icon: '▦' },
   { to: 'optimizer', label: 'Optimizador',  icon: '◎' },
   { to: 'xray',      label: 'X-Ray',        icon: '◈' },
-  { to: 'backtest',  label: 'Backtesting',  icon: '◉' },
-  { to: 'compare',   label: 'Comparador',   icon: '▣' },
+  { to: 'backtest',   label: 'Backtesting',  icon: '◉' },
+  { to: 'projection', label: 'Proyección',   icon: '◔' },
+  { to: 'fiscalidad', label: 'Fiscalidad',   icon: '€' },
+  { to: 'compare',    label: 'Comparador',   icon: '▣' },
 ];
 
 // ── Logo SVG ──────────────────────────────────────────────────────────────────

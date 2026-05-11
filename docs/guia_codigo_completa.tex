@@ -1,0 +1,2827 @@
+\documentclass[11pt,a4paper]{book}
+
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black,
+}
+
+\definecolor{codebg}{RGB}{248,248,250}
+\definecolor{codekey}{RGB}{0,90,156}
+\definecolor{codestr}{RGB}{160,80,30}
+\definecolor{codecom}{RGB}{120,120,120}
+\definecolor{codetypes}{RGB}{55,120,90}
+
+\lstdefinelanguage{TypeScript}{
+  keywords={break, case, catch, class, const, continue, debugger, default, delete, do, else, enum, export, extends, false, finally, for, function, if, import, in, instanceof, interface, let, new, null, of, return, super, switch, this, throw, true, try, type, typeof, var, void, while, with, async, await, from, as, declare, readonly, public, private, protected, static, abstract},
+  keywordstyle=\color{codekey}\bfseries,
+  ndkeywords={number, string, boolean, any, unknown, never, void, React, useState, useEffect, useRef, useMemo, useCallback},
+  ndkeywordstyle=\color{codetypes}\bfseries,
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`,
+}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekey}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  frame=single,
+  rulecolor=\color{black!20},
+  numbers=left,
+  numberstyle=\tiny\color{black!50},
+  numbersep=8pt,
+  xleftmargin=14pt,
+  framexleftmargin=4pt,
+  captionpos=b,
+  tabsize=2,
+  upquote=true,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1
+    {¿}{{?`}}1 {¡}{{!`}}1 {€}{{\euro}}1 {°}{{$^\circ$}}1
+    {α}{{$\alpha$}}1 {θ}{{$\theta$}}1 {μ}{{$\mu$}}1 {Σ}{{$\Sigma$}}1
+    {σ}{{$\sigma$}}1 {τ}{{$\tau$}}1 {Δ}{{$\Delta$}}1
+    {≤}{{$\leq$}}1 {≥}{{$\geq$}}1 {≈}{{$\approx$}}1 {→}{{$\to$}}1
+    {²}{{$^2$}}1 {³}{{$^3$}}1
+}
+
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-30pt}{20pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small \leftmark}
+\lhead{\small PortfolioLab · Walkthrough}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{\textbf{PortfolioLab — Walkthrough completo del código}\\[0.4em]
+       \large Explicación archivo por archivo\\
+       \small con bloques de código y comentarios pedagógicos}
+\author{Rubén Moreno Fernández\\\small TFG · UMA 2026}
+\date{Mayo 2026}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+
+\begin{abstract}
+\noindent Este documento es un \emph{walkthrough} exhaustivo del código fuente de la aplicación \textbf{PortfolioLab}. Está organizado por archivos: para cada uno se incluye una breve descripción de su propósito, el código completo (o los fragmentos relevantes) y una explicación detallada de cada bloque. Está pensado como herramienta de estudio antes de la defensa del TFG y como complemento técnico de la memoria.
+
+\medskip
+
+Estructura: la primera parte cubre el \textbf{backend} (Python + FastAPI + SQLAlchemy), la segunda parte cubre el \textbf{frontend} (React + TypeScript). Dentro de cada parte se sigue un orden lógico: configuración, capa de datos, lógica de negocio, capa de presentación.
+
+\medskip
+
+Cuando un fragmento contiene una idea clave (por ejemplo, una elección metodológica o un truco numérico), se acompaña de una nota pedagógica destacada para facilitar su asimilación de cara a la defensa.
+\end{abstract}
+
+\tableofcontents
+
+\mainmatter
+
+% =============================================================================
+\part{Backend (Python · FastAPI · SQLAlchemy)}
+% =============================================================================
+
+% =============================================================================
+\chapter{Arranque de la aplicación y configuración}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/main.py} --- el punto de entrada de FastAPI}
+% -----------------------------------------------------------------------------
+
+Este archivo es el más alto en jerarquía del backend. Su trabajo es:
+
+\begin{enumerate}
+  \item Construir la instancia de \texttt{FastAPI}.
+  \item Crear las tablas en la base de datos al arrancar (por si no se ha lanzado Alembic).
+  \item Configurar CORS para que el frontend pueda hablar con el backend.
+  \item Registrar todos los \textit{routers} de la API.
+\end{enumerate}
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/app/main.py}}]
+import logging
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.auth import router as auth_router
+from app.api.assets import router as assets_router
+from app.api.backtesting import router as backtesting_router
+from app.api.portfolio import router as portfolio_router
+from app.db.database import engine
+from app.db.models import Base
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="TFG Optimización de Carteras",
+    servers=[{"url": "http://127.0.0.1:8000"}],
+)
+
+
+@app.on_event("startup")
+def create_tables() -> None:
+    """Crea las tablas si no existen (útil cuando se arranca sin pasar por alembic)."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Tablas verificadas/creadas correctamente.")
+    except Exception as exc:
+        logger.error("Error al crear tablas en startup: %s", exc)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
+app.include_router(assets_router)
+app.include_router(portfolio_router)
+app.include_router(backtesting_router)
+\end{lstlisting}
+
+\paragraph{Líneas 1--11: imports.} Se importa \texttt{FastAPI} (el framework), su \texttt{CORSMiddleware} y los cuatro \textit{routers} de la API. \texttt{engine} es la conexión a Postgres y \texttt{Base} la clase declarativa de SQLAlchemy de la que heredan todas las tablas.
+
+\paragraph{Líneas 15--18: instancia de la aplicación.} El \texttt{title} aparece en la documentación auto-generada (Swagger UI en \texttt{/docs}). El campo \texttt{servers} es relevante para que las URLs absolutas en la doc apunten al backend local.
+
+\paragraph{Líneas 21--28: hook de arranque.} El decorador \texttt{@app.on\_event("startup")} hace que la función se ejecute una sola vez al iniciar el servidor. \texttt{Base.metadata.create\_all()} es \emph{idempotente}: solo crea las tablas que no existen. Es un \textit{safety net} para entornos donde Alembic no se haya ejecutado todavía.
+
+\paragraph{Líneas 30--36: middleware CORS.} Permite que el frontend (que corre en otro puerto) haga peticiones al backend. \texttt{allow\_origins=["*"]} es \textbf{permisivo}: en producción habría que restringir al dominio real. Para desarrollo y demo es aceptable.
+
+\paragraph{Líneas 38--41: registro de routers.} Cada router contiene un grupo de endpoints relacionados. Al registrarlos aquí, FastAPI los expone bajo sus respectivos \textit{prefixes} (\texttt{/auth}, \texttt{/assets}, \texttt{/portfolio}, \texttt{/backtesting}).
+
+\paragraph{Nota pedagógica.} El patrón de \textit{routers separados} es la práctica recomendada en FastAPI: cada módulo agrupa sus endpoints, sus modelos Pydantic y sus dependencias. Si un día se quiere extraer un módulo a un microservicio separado, solo hay que mover esa carpeta.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/core/config.py} --- variables de entorno}
+% -----------------------------------------------------------------------------
+
+Este archivo centraliza la configuración de la aplicación. Usa \texttt{pydantic-settings}, que carga automáticamente variables de un archivo \texttt{.env} y las valida según el tipo declarado.
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/app/core/config.py}}]
+from typing import Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    database_url: str
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    yfinance_enabled: bool = True
+    alpha_vantage_api_key: Optional[str] = None
+    postgres_user: str = ""
+    postgres_password: str = ""
+    postgres_db: str = ""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+
+settings = Settings()
+\end{lstlisting}
+
+\paragraph{Lo que hay que entender.} El objeto \texttt{settings} es un singleton que se instancia al importar el módulo. Cualquier otro archivo que necesite configuración hace \texttt{from app.core.config import settings} y accede a \texttt{settings.database\_url}, \texttt{settings.secret\_key}, etc.
+
+\paragraph{Validación de tipos.} Si en el \texttt{.env} aparece \texttt{ACCESS\_TOKEN\_EXPIRE\_MINUTES=abc}, Pydantic lanza un error en arranque. Esto evita errores silenciosos por configuración mal escrita.
+
+\paragraph{Valores por defecto.} \texttt{algorithm}, \texttt{access\_token\_expire\_minutes}, etc.\ tienen un valor por defecto razonable, así que no es obligatorio definirlos en el \texttt{.env}.
+
+\paragraph{\texttt{extra="ignore"}.} Si el \texttt{.env} contiene variables que no están declaradas en la clase (por ejemplo, variables de Docker Compose), Pydantic las ignora en lugar de quejarse.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/core/security.py} --- hash de contraseñas y JWT}
+% -----------------------------------------------------------------------------
+
+Funciones de seguridad reutilizables: hashear contraseñas con bcrypt y emitir/validar JWT.
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/app/core/security.py}}]
+from datetime import datetime, timedelta, timezone
+
+import bcrypt
+from jose import jwt
+
+from app.core.config import settings
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+
+
+def create_access_token(subject: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.access_token_expire_minutes
+    )
+    payload = {"sub": subject, "exp": expire}
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+
+def decode_access_token(token: str) -> str:
+    payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+    return payload["sub"]
+\end{lstlisting}
+
+\paragraph{\texttt{hash\_password}.} \texttt{bcrypt.gensalt()} genera un \textit{salt} aleatorio cada vez. El hash resultante \emph{incluye} el salt, así que para verificar no hay que guardarlo aparte. El factor de coste de bcrypt está por defecto en 12, lo que tarda \(\approx\) 100 ms por hash --- suficientemente lento para frenar fuerza bruta, suficientemente rápido para un login normal.
+
+\paragraph{\texttt{verify\_password}.} \texttt{bcrypt.checkpw()} es \textit{constant time} respecto a la longitud, lo que evita ataques por canal lateral basados en cuánto tarda la comparación.
+
+\paragraph{\texttt{create\_access\_token}.} El \textit{payload} JWT incluye \texttt{sub} (subject, en nuestro caso el id del usuario) y \texttt{exp} (timestamp de expiración). Se firma con \texttt{secret\_key} usando el algoritmo HS256 (HMAC-SHA256). El cliente no puede falsificar tokens sin conocer la clave.
+
+\paragraph{\texttt{decode\_access\_token}.} Si la firma no coincide o el token ha expirado, \texttt{jose} lanza una excepción que se captura en \texttt{deps.py} (lo veremos en breve).
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/db/database.py} --- sesión SQLAlchemy}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/app/db/database.py}}]
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.core.config import settings
+
+engine = create_engine(settings.database_url)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+\end{lstlisting}
+
+\paragraph{\texttt{engine}.} Pool de conexiones a Postgres construido a partir de la URL del \texttt{.env} (\texttt{postgresql://user:pass@host:port/db}). Es un singleton que se reutiliza en toda la app.
+
+\paragraph{\texttt{SessionLocal}.} Una \textit{factory} de sesiones. Cada vez que se llama, devuelve una nueva sesión transaccional. \texttt{autocommit=False} fuerza al usuario a llamar explícitamente a \texttt{db.commit()}; \texttt{autoflush=False} evita que las queries hagan flush automático antes de cada SELECT (mejora rendimiento al precio de pedir flush manual cuando es necesario).
+
+\paragraph{\texttt{get\_db()}.} Es un \textit{generador} pensado para usarse como dependencia FastAPI: se inyecta con \texttt{Depends(get\_db)} en cualquier endpoint que necesite hablar con la BD. El bloque \texttt{try/finally} garantiza que la sesión se cierra incluso si el endpoint lanza excepción.
+
+% =============================================================================
+\chapter{Modelos de base de datos}
+% =============================================================================
+
+\section{\texttt{backend/app/db/models.py}}
+
+Las cinco tablas del sistema, definidas con SQLAlchemy declarativo.
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/app/db/models.py}}]
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy.orm import DeclarativeBase, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Usuario(Base):
+    __tablename__ = "usuario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    capital_base = Column(Float, nullable=True)
+    tolerancia_riesgo = Column(Float, nullable=True)
+
+    carteras = relationship("Cartera", back_populates="usuario")
+
+
+class Cartera(Base):
+    __tablename__ = "cartera"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuario.id"), nullable=False)
+    nombre_estrategia = Column(String, nullable=False)
+    fecha_creacion = Column(Date, nullable=False)
+
+    usuario = relationship("Usuario", back_populates="carteras")
+    activos = relationship("ActivoCartera", back_populates="cartera")
+
+
+class Activo(Base):
+    __tablename__ = "activo"
+
+    id = Column(Integer, primary_key=True, index=True)
+    isin_ticker = Column(String, unique=True, nullable=False, index=True)
+    nombre_fondo = Column(String, nullable=False)
+    carteras = relationship("ActivoCartera", back_populates="activo")
+
+
+class ActivoCartera(Base):
+    __tablename__ = "activo_cartera"
+
+    cartera_id = Column(Integer, ForeignKey("cartera.id"), primary_key=True)
+    activo_id = Column(Integer, ForeignKey("activo.id"), primary_key=True)
+    peso_asignado = Column(Float, nullable=False)
+
+    cartera = relationship("Cartera", back_populates="activos")
+    activo = relationship("Activo", back_populates="carteras")
+
+
+class CarteraSnapshot(Base):
+    __tablename__ = "cartera_snapshot"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cartera_id = Column(Integer, ForeignKey("cartera.id"), nullable=False, index=True)
+    fecha = Column(DateTime, nullable=False)
+    nombre_estrategia = Column(String, nullable=False)
+    pesos = Column(JSON, nullable=False)
+    motivo = Column(String, nullable=False, default="edicion")
+\end{lstlisting}
+
+\paragraph{\texttt{Usuario}.} La tabla central de identidad. \texttt{email} es \texttt{unique} para que SQL nos ayude a impedir duplicados a nivel de BD (no solo de aplicación). \texttt{capital\_base} y \texttt{tolerancia\_riesgo} son \texttt{nullable} porque un usuario recién registrado todavía no ha pasado por el Planificador.
+
+\paragraph{\texttt{Cartera}.} Cada cartera pertenece a un usuario (\texttt{usuario\_id} con \textit{foreign key}). \texttt{nombre\_estrategia} es texto libre que el usuario elige al guardar. La relación \texttt{activos} es N:M y se materializa a través de la tabla intermedia \texttt{ActivoCartera}.
+
+\paragraph{\texttt{Activo}.} Catálogo de activos referenciados. La columna \texttt{isin\_ticker} guarda el símbolo (AAPL, MSFT, BND...) y es \texttt{unique}: si ya existe el activo, no se duplica al guardar otra cartera que lo contenga.
+
+\paragraph{\texttt{ActivoCartera}.} Tabla de \emph{junction} con su propio campo (\texttt{peso\_asignado}), por eso es una entidad independiente y no una simple tabla de enlace. La clave primaria es compuesta (\texttt{cartera\_id}, \texttt{activo\_id}).
+
+\paragraph{\texttt{CarteraSnapshot}.} Versión histórica. Cada vez que el usuario edita los pesos, se inserta aquí el estado anterior. La columna \texttt{pesos} es \texttt{JSON} (\texttt{jsonb} en Postgres), lo que evita el coste de mantener \texttt{ActivoSnapshot} N:M y acelera lecturas. \texttt{motivo} marca de dónde vino el snapshot (\texttt{edicion}, \texttt{creacion}, \texttt{manual}).
+
+\paragraph{Nota pedagógica sobre el diseño.} Tener una tabla \texttt{Activo} separada (en lugar de duplicar el ticker en cada \texttt{ActivoCartera}) permitiría enriquecer cada activo con metadatos persistentes (sector, país, etc.). Hoy esos datos se descargan en caliente vía yfinance, pero la tabla está preparada para crecer.
+
+% =============================================================================
+\chapter{Capa ETL: caché y datos de mercado}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/etl/cache.py} --- caché TTL en memoria}
+% -----------------------------------------------------------------------------
+
+Una pieza clave de rendimiento. yfinance impone \textit{rate limit} y descargar 5 años de cotizaciones de 8 tickers tarda ~10 segundos. Con caché, las llamadas repetidas son instantáneas.
+
+\begin{lstlisting}[language=Python,caption={\texttt{backend/etl/cache.py} (estructura)}]
+class TTLCache:
+    """LRU cache con expiración por entrada. Thread-safe."""
+
+    def __init__(self, ttl_seconds: int, max_size: int = 256):
+        self.ttl = ttl_seconds
+        self.max_size = max_size
+        self._store: OrderedDict[Any, tuple[float, Any]] = OrderedDict()
+        self._lock = threading.RLock()
+        self.hits = 0
+        self.misses = 0
+
+    def get(self, key: Any) -> Any | None:
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                self.misses += 1
+                return None
+            timestamp, value = entry
+            if time.monotonic() - timestamp > self.ttl:
+                del self._store[key]
+                self.misses += 1
+                return None
+            self._store.move_to_end(key)  # LRU: mover al final
+            self.hits += 1
+            return value
+
+    def set(self, key: Any, value: Any) -> None:
+        with self._lock:
+            self._store[key] = (time.monotonic(), value)
+            self._store.move_to_end(key)
+            while len(self._store) > self.max_size:
+                self._store.popitem(last=False)
+\end{lstlisting}
+
+\paragraph{Estructura interna: \texttt{OrderedDict}.} Es un dict que recuerda el orden de inserción y permite mover entradas al final con \texttt{move\_to\_end}. Esto convierte automáticamente al diccionario en una estructura LRU: si hay que evictar, elimino el primero (\texttt{popitem(last=False)}), que será el que lleva más tiempo sin tocarse.
+
+\paragraph{Expiración temporal: \texttt{time.monotonic}.} A diferencia de \texttt{time.time()}, \texttt{monotonic} es inmune a cambios de reloj (NTP, cambio de hora). Para medir intervalos es siempre la opción correcta.
+
+\paragraph{Concurrencia: \texttt{threading.RLock}.} FastAPI puede servir peticiones concurrentes (con uvicorn workers o async handlers que ejecutan código sync en threadpool). Sin lock habría \textit{race conditions} en los contadores. Uso \texttt{RLock} (reentrant) por si hay anidamiento.
+
+\paragraph{Métricas: \texttt{hits}, \texttt{misses}.} Permiten medir el \textit{hit rate} en producción. El endpoint \texttt{/assets/cache-stats} expone estos valores.
+
+\begin{lstlisting}[language=Python,caption={Decorador \texttt{ttl\_cache}}]
+def ttl_cache(cache: TTLCache):
+    def decorator(fn: Callable):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            key_args = args
+            if args and hasattr(args[0], "__dict__") and not isinstance(args[0], (str, int, float, tuple)):
+                key_args = args[1:]
+            key = (fn.__name__, key_args, tuple(sorted(kwargs.items())))
+            cached = cache.get(key)
+            if cached is not None:
+                return cached
+            result = fn(*args, **kwargs)
+            cache.set(key, result)
+            return result
+        wrapper.cache = cache  # type: ignore
+        return wrapper
+    return decorator
+
+
+prices_cache = TTLCache(ttl_seconds=6 * 3600,  max_size=256)
+info_cache   = TTLCache(ttl_seconds=1 * 3600,  max_size=512)
+search_cache = TTLCache(ttl_seconds=15 * 60,   max_size=256)
+\end{lstlisting}
+
+\paragraph{Construcción de la clave de caché.} Combina nombre de función + args + kwargs ordenados. El truco de descartar \texttt{args[0]} cuando es un objeto con \texttt{\_\_dict\_\_} sirve para saltar el \texttt{self} en métodos de instancia, ya que \texttt{self} no es parte de la firma lógica.
+
+\paragraph{Tres singletons.} Tres cachés distintas con TTL apropiado a la naturaleza del dato:
+\begin{itemize}
+  \item \textbf{prices\_cache}: 6 horas. Los precios diarios no cambian hasta el siguiente cierre.
+  \item \textbf{info\_cache}: 1 hora. Metadatos del activo (sector, dividend yield, etc.) cambian poco.
+  \item \textbf{search\_cache}: 15 minutos. Resultados de la búsqueda de Yahoo Finance.
+\end{itemize}
+
+\paragraph{Nota pedagógica.} Esta caché no usa Redis ni Memcached porque la escala del TFG no lo requiere. Si la app se desplegara con varios procesos backend, habría que sustituirla por una caché compartida. Eso queda como \textit{trabajo futuro}.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/etl/market\_data.py} --- conector de datos}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python,caption={Cabecera del módulo y \texttt{get\_historical\_prices}}]
+class MarketDataConnector:
+    @ttl_cache(prices_cache)
+    def get_historical_prices(
+        self,
+        ticker: str,
+        period: str = "1y",
+        start: str | None = None,
+        end: str | None = None,
+    ) -> pd.DataFrame:
+        """
+        Devuelve DataFrame con columnas [fecha, valor_liquidativo].
+        Si se proporcionan start/end, tienen precedencia sobre period.
+        Intenta yfinance primero; si falla, Alpha Vantage como fallback.
+        """
+        try:
+            return self._from_yfinance(ticker, period, start, end)
+        except Exception as exc:
+            logger.warning("yfinance fallo: %s. Probando Alpha Vantage...", exc)
+
+        try:
+            return self._from_alpha_vantage(ticker)
+        except DataSourceError:
+            raise
+        except Exception as exc:
+            logger.error("Alpha Vantage tambien fallo: %s", exc)
+
+        raise DataSourceError(f"No se pudieron obtener datos para '{ticker}'.")
+\end{lstlisting}
+
+\paragraph{Decorado con caché.} Todas las llamadas con los mismos parámetros se sirven desde memoria durante 6 horas. La primera llamada para un ticker que no esté en caché lanza la descarga real.
+
+\paragraph{Estrategia de \textit{fallback}.} Primero yfinance (rápido, sin API key, datos completos). Si yfinance falla --- por rate limit, ticker delisted, problema de red --- cae a Alpha Vantage, que requiere clave de API gratuita. Si ambos fallan se lanza \texttt{DataSourceError}.
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_from\_yfinance} y \texttt{get\_historical\_full}}]
+def _from_yfinance(self, ticker: str, period: str, start=None, end=None) -> pd.DataFrame:
+    data = self._yf_history(ticker, period, start, end, auto_adjust=True)
+    df = data[["Close"]].reset_index()
+    df.columns = ["fecha", "valor_liquidativo"]
+    df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+    return df.dropna()
+
+
+@ttl_cache(prices_cache)
+def get_historical_full(self, ticker, period="1y", start=None, end=None) -> pd.DataFrame:
+    """
+    Devuelve [fecha, precio, precio_total_return, dividendo].
+      - precio: ajustado por splits, NO por dividendos.
+      - precio_total_return: ajustado por splits Y dividendos.
+      - dividendo: dividendo bruto pagado ese día (0 si no hay).
+    """
+    data = self._yf_history(ticker, period, start, end, auto_adjust=False)
+    cols = ["Close", "Adj Close"]
+    if "Dividends" in data.columns:
+        cols.append("Dividends")
+    df = data[cols].reset_index()
+    rename = {"Close": "precio", "Adj Close": "precio_total_return", "Dividends": "dividendo"}
+    df = df.rename(columns=rename)
+    df = df.rename(columns={df.columns[0]: "fecha"})
+    df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+    if "dividendo" not in df.columns:
+        df["dividendo"] = 0.0
+    df["dividendo"] = df["dividendo"].fillna(0.0)
+    return df.dropna(subset=["precio", "precio_total_return"])
+\end{lstlisting}
+
+\paragraph{Diferencia clave: \texttt{auto\_adjust=True} vs \texttt{False}.} Cuando es \texttt{True}, la columna \texttt{Close} ya viene ajustada por splits \emph{y} por dividendos: es directamente \textit{total return}. Esta es la convención académica para optimización de carteras. Con \texttt{False} se mantienen separadas \texttt{Close} (solo splits) y \texttt{Adj Close} (splits + dividendos), y aparece la columna \texttt{Dividends} con los pagos brutos. \texttt{get\_historical\_full} usa esta segunda variante para que el motor de backtest pueda \textbf{descomponer} el retorno en \emph{precio puro} vs \emph{dividendos reinvertidos}.
+
+\paragraph{Nota pedagógica para defensa.} Si te preguntan «¿incluyes dividendos?» la respuesta es \emph{sí, vía total return ajustado por yfinance}. Y además ofrecemos un análisis explícito de la componente dividendaria, lo que es raro en TFGs cuantitativos.
+
+% =============================================================================
+\chapter{Optimizador de carteras}
+% =============================================================================
+
+\section{\texttt{backend/optimizer/markowitz.py} --- la pieza central}
+
+Este es el archivo más extenso y complejo del backend. Implementa cinco métodos de optimización y dos análisis adicionales (frontera eficiente y frontera de Pareto). Lo recorremos por bloques.
+
+\subsection{Cabecera del módulo y constantes}
+
+\begin{lstlisting}[language=Python,caption={Constantes globales}]
+RISK_FREE_RATE = 0.02
+N_STARTS = 20
+
+METODOS_SOPORTADOS = ("markowitz", "min_variance", "risk_parity",
+                     "equal_weight", "min_cvar")
+CVAR_ALPHA = 0.95
+\end{lstlisting}
+
+\paragraph{\texttt{RISK\_FREE\_RATE}.} 2\,\% anual. Es la tasa libre de riesgo asumida en el cálculo del Sharpe. En 2025 el bono español a 10 años está en torno al 3.5\,\%, así que esta tasa es algo conservadora. Para estudiar la sensibilidad podríamos parametrizarla, pero un 2\,\% es el valor académico estándar para comparaciones temporales largas.
+
+\paragraph{\texttt{N\_STARTS = 20}.} Número de puntos de inicio aleatorios del multi-start SLSQP en el método Markowitz. 20 es un compromiso entre robustez y latencia: con muestreos Dirichlet de pesos iniciales, casi siempre uno converge al óptimo global, aunque añade ~2 segundos de cómputo.
+
+\paragraph{\texttt{METODOS\_SOPORTADOS}.} Tupla con los cinco identificadores válidos. Sirve para validar el parámetro \texttt{metodo} en \texttt{optimizar()} y para que el frontend muestre el menú de métodos.
+
+\paragraph{\texttt{CVAR\_ALPHA = 0.95}.} Nivel de confianza para CVaR. 95\,\% significa que penalizamos el promedio del peor 5\,\% de días. Convención académica.
+
+\subsection{Constructor: descarga de datos y matriz de covarianzas}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_\_init\_\_}}]
+class MarkowitzOptimizer:
+    def __init__(self, tickers: list[str], period: str = "2y"):
+        connector = MarketDataConnector()
+        prices: dict[str, pd.Series] = {}
+        for ticker in tickers:
+            df = connector.get_historical_prices(ticker, period)
+            prices[ticker] = df.set_index("fecha")["valor_liquidativo"]
+
+        price_df = pd.DataFrame(prices).dropna()
+        if price_df.empty:
+            raise ValueError(
+                "No hay fechas comunes entre los tickers seleccionados. "
+                "Comprueba que todos coticen en el mismo periodo."
+            )
+        if len(price_df.columns) < len(tickers):
+            faltan = [t for t in tickers if t not in price_df.columns]
+            raise ValueError(
+                f"Sin datos suficientes para: {', '.join(faltan)}. "
+                "Quítalos o cambia el periodo."
+            )
+        self.tickers = list(price_df.columns)
+        self.returns: pd.DataFrame = price_df.pct_change().dropna()
+\end{lstlisting}
+
+\paragraph{Lo que hace.} 1) Descarga precios para cada ticker (vía caché). 2) Los junta en un \texttt{DataFrame}, alineando por fecha. 3) Llama a \texttt{dropna()} para quedarse solo con fechas en las que \emph{todos} los activos tienen dato. 4) Calcula la matriz de retornos diarios con \texttt{pct\_change()}.
+
+\paragraph{Validaciones añadidas tras revisión.} Si \texttt{price\_df.empty} (no hay intersección temporal) o si \texttt{dropna} quitó tickers enteros, se lanza un error explícito. Sin este \textit{guard}, el optimizador continuaría silenciosamente con menos activos de los que el usuario pidió.
+
+\begin{lstlisting}[language=Python]
+def calcular_matriz_covarianza(self) -> pd.DataFrame:
+    return self.returns.cov() * 252
+
+def _portfolio_vol(self, weights, cov_matrix) -> float:
+    return float(np.sqrt(weights @ cov_matrix @ weights))
+\end{lstlisting}
+
+\paragraph{Anualización × 252.} Los retornos son diarios. Para anualizar la varianza se multiplica por 252 (días de cotización al año). Para anualizar la volatilidad (\(\sigma\)) se multiplicaría por \(\sqrt{252}\). En \texttt{\_portfolio\_vol} ya devolvemos \(\sigma\) anualizada porque \texttt{cov\_matrix} ya está anualizada y \(\sigma_p = \sqrt{w^\top \Sigma w}\).
+
+\subsection{Método 1 --- Mínima varianza}
+
+\begin{lstlisting}[language=Python]
+def _min_varianza(self, cov_matrix: np.ndarray) -> np.ndarray:
+    n = len(self.tickers)
+    result = minimize(
+        lambda w: self._portfolio_vol(w, cov_matrix),
+        np.ones(n) / n,
+        method="SLSQP",
+        bounds=[(0.0, 1.0)] * n,
+        constraints=[{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}],
+        options={"ftol": 1e-12, "maxiter": 2000},
+    )
+    if result.success:
+        return result.x
+    return np.ones(n) / n  # fallback equiponderado
+\end{lstlisting}
+
+\paragraph{Función objetivo.} \texttt{lambda w: self.\_portfolio\_vol(w, cov\_matrix)} -- sí, minimizamos $\sigma$ en lugar de $\sigma^2$. El óptimo es el mismo (la raíz cuadrada es monótona) pero $\sigma$ tiene escala más manejable y el solver converge igual de bien.
+
+\paragraph{Restricciones.} \texttt{bounds=[(0,1)]*n} impide pesos negativos (no permitimos posiciones cortas) y mayores que 1. La restricción de igualdad fuerza $\sum w_i = 1$ (cartera completamente invertida).
+
+\paragraph{\texttt{ftol=1e-12}.} Tolerancia muy estricta. Para mínima varianza es importante converger fino: la función objetivo es convexa y suave, así que el solver puede llegar muy cerca del óptimo.
+
+\paragraph{Fallback equiponderado.} Si el solver falla (raro pero puede pasar por mal condicionamiento), devolvemos $1/N$ como red de seguridad.
+
+\subsection{Método 5 --- Equal Weight (1/N)}
+
+\begin{lstlisting}[language=Python]
+def _equal_weight(self) -> np.ndarray:
+    n = len(self.tickers)
+    return np.ones(n) / n
+\end{lstlisting}
+
+\paragraph{El más simple y, paradójicamente, uno de los más robustos.} DeMiguel, Garlappi y Uppal (2009) demostraron sobre 7 datasets de 50 años de histórico que la cartera 1/N no es estadísticamente peor (en términos de Sharpe \textit{out of sample}) que muchos métodos sofisticados. Razón: los retornos esperados $\mu$ y la matriz $\Sigma$ se estiman con muchísimo ruido y los métodos que dependen mucho de ellos sobre-ajustan.
+
+\paragraph{En la app.} Lo incluyo como \emph{baseline ingenuo}: cuando el usuario lo elige, ve cómo se comportaría una asignación uniforme. En la mayoría de casos pierde un poco contra Markowitz pero gana en concentración y diversification ratio (más adelante explicamos qué son).
+
+\subsection{Método 4 --- Mínimo CVaR}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_min\_cvar}}]
+def _min_cvar(self, alpha: float = CVAR_ALPHA) -> np.ndarray:
+    n = len(self.tickers)
+    returns_matrix = self.returns.values  # (T, n)
+
+    def cvar_loss(w: np.ndarray) -> float:
+        port_returns = returns_matrix @ w
+        losses = -port_returns
+        var = np.percentile(losses, alpha * 100)
+        tail = losses[losses >= var]
+        if len(tail) == 0:
+            return float(var)
+        return float(tail.mean())
+
+    bounds = [(0.0, 1.0)] * n
+    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+    rng = np.random.default_rng(42)
+    starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(8)]
+
+    best = None
+    for w0 in starts:
+        try:
+            res = minimize(
+                cvar_loss, w0, method="SLSQP",
+                bounds=bounds, constraints=constraints,
+                options={"ftol": 1e-9, "maxiter": 500},
+            )
+            if res.success and (best is None or res.fun < best.fun):
+                best = res
+        except Exception:
+            continue
+    if best is None:
+        logger.warning("Min CVaR: ningún start convergió, usando mínima varianza.")
+        return self._min_varianza(self.calcular_matriz_covarianza().values)
+    return best.x
+\end{lstlisting}
+
+\paragraph{Idea matemática.} El \emph{Conditional Value at Risk} al nivel $\alpha$ es \emph{el promedio de las pérdidas que superan el VaR$_\alpha$}. Es decir, "cuando la cosa va realmente mal, ¿cuánto pierdo en promedio?". Es una medida \textbf{coherente} de riesgo (Artzner 1999), a diferencia del VaR que no lo es.
+
+\paragraph{Implementación empírica.} Para cada vector de pesos $w$ candidato:
+\begin{enumerate}
+  \item Calculamos los retornos diarios de la cartera $r_t = R_t \cdot w$.
+  \item Convertimos a pérdidas $L_t = -r_t$.
+  \item Encontramos el VaR como percentil 95 de las pérdidas.
+  \item Promediamos las pérdidas que superan ese VaR (la cola).
+\end{enumerate}
+Esto es la formulación empírica directa, sin asumir distribución alguna --- en línea con la propuesta de Rockafellar y Uryasev (2000).
+
+\paragraph{Multi-start con Dirichlet.} La función objetivo no es suave (el percentil introduce discontinuidades cuando $w$ cambia el orden de los retornos). Por eso lanzamos SLSQP desde 9 puntos: el equiponderado más 8 muestreos de una distribución de Dirichlet, que genera vectores de pesos válidos (positivos y suman 1). Semilla fija 42 para reproducibilidad.
+
+\paragraph{\texttt{except Exception}.} Si un \textit{start} hace explotar el solver (ocurre con SLSQP en funciones no suaves), simplemente lo saltamos. Mientras al menos uno converja, tenemos resultado. Si ninguno lo hace, caemos a mínima varianza.
+
+\subsection{Método 3 --- Risk Parity (ERC)}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_risk\_parity}}]
+def _risk_parity(self, cov_matrix: np.ndarray) -> np.ndarray:
+    n = len(self.tickers)
+
+    def f(w: np.ndarray) -> float:
+        sigma_w = cov_matrix @ w
+        rc = w * sigma_w  # contribuciones marginales (sin normalizar)
+        mean = rc.mean()
+        return float(np.sum((rc - mean) ** 2))
+
+    bounds = [(1e-6, 1.0)] * n  # evitamos w=0
+    constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+    rng = np.random.default_rng(42)
+    starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(5)]
+
+    best = None
+    for w0 in starts:
+        res = minimize(
+            f, w0, method="SLSQP",
+            bounds=bounds, constraints=constraints,
+            options={"ftol": 1e-12, "maxiter": 2000},
+        )
+        if res.success and (best is None or res.fun < best.fun):
+            best = res
+    if best is None:
+        return self._equal_weight()
+    return best.x
+\end{lstlisting}
+
+\paragraph{Concepto.} \emph{Equal Risk Contribution} (Maillard, Roncalli \& Teïleche 2010). Queremos que cada activo aporte el mismo riesgo a la cartera. La contribución al riesgo del activo $i$ es:
+\[ \mathrm{RC}_i = w_i \cdot \frac{(\Sigma w)_i}{\sigma_p} \]
+
+\paragraph{Truco numérico: minimizar dispersión, no la suma de cuadrados de diferencias.} La formulación clásica $\sum_{i,j} (\mathrm{RC}_i - \mathrm{RC}_j)^2$ es $O(n^2)$ y tiene división por $\sigma_p$ que rompe derivabilidad. La fórmula equivalente que usamos es minimizar $\sum_i (w_i \cdot (\Sigma w)_i - \overline{w \cdot \Sigma w})^2$, que es $O(n)$, suave y converge mejor.
+
+\paragraph{Bounds inferiores en \texttt{1e-6} en lugar de 0.} Para evitar que algún $w_i = 0$ exacto rompa la diferenciabilidad de las contribuciones marginales. Es un truco práctico que apenas afecta al resultado pero ayuda mucho al solver.
+
+\paragraph{Para qué se usa en la práctica.} Es la filosofía detrás de fondos como el \textit{All Weather} de Bridgewater. Se considera estado del arte en gestión institucional moderna porque genera carteras estables sin depender de la estimación (ruidosa) de los retornos esperados.
+
+\subsection{Método 1 --- Markowitz: maximización del Sharpe}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_max\_sharpe}}]
+def _max_sharpe(self, cov_matrix, mean_returns, max_volatilidad) -> np.ndarray:
+    n = len(self.tickers)
+
+    def neg_sharpe(weights: np.ndarray) -> float:
+        port_return = float(np.dot(weights, mean_returns))
+        port_vol = self._portfolio_vol(weights, cov_matrix)
+        if port_vol < 1e-10:
+            return 0.0
+        return -(port_return - RISK_FREE_RATE) / port_vol
+
+    constraints = [
+        {"type": "eq",   "fun": lambda w: np.sum(w) - 1.0},
+        {"type": "ineq", "fun": lambda w: max_volatilidad - self._portfolio_vol(w, cov_matrix)},
+    ]
+    bounds = [(0.0, 1.0)] * n
+
+    rng = np.random.default_rng(42)
+    starting_points = [np.ones(n) / n] + [
+        rng.dirichlet(np.ones(n)) for _ in range(N_STARTS)
+    ]
+
+    best_result = None
+    best_neg_sharpe = np.inf
+    for w0 in starting_points:
+        res = minimize(
+            neg_sharpe, w0, method="SLSQP",
+            bounds=bounds, constraints=constraints,
+            options={"ftol": 1e-9, "maxiter": 1000},
+        )
+        if res.success and res.fun < best_neg_sharpe:
+            best_neg_sharpe = res.fun
+            best_result = res
+
+    if best_result is None:
+        w_minvar = self._min_varianza(cov_matrix)
+        min_vol = self._portfolio_vol(w_minvar, cov_matrix)
+        if min_vol > max_volatilidad:
+            raise ValueError(
+                f"La volatilidad mínima alcanzable es {min_vol*100:.1f}%, "
+                f"superior a tu restricción de {max_volatilidad*100:.1f}%."
+            )
+        return w_minvar
+    return best_result.x
+\end{lstlisting}
+
+\paragraph{Función objetivo: \texttt{neg\_sharpe}.} Maximizar Sharpe equivale a minimizar su opuesto. \texttt{scipy.optimize.minimize} solo minimiza, así que devolvemos $-\mathrm{Sharpe}(w)$.
+
+\paragraph{Restricción de desigualdad.} \texttt{ineq} en SLSQP significa $g(w) \ge 0$. La función \texttt{max\_volatilidad - vol(w)} debe ser $\ge 0$, es decir, $\sigma(w) \le \sigma_{\max}$. El usuario configura este límite en el slider del frontend.
+
+\paragraph{Multi-start con 21 puntos.} Equiponderado más 20 muestreos Dirichlet. Sharpe \emph{tiene} mínimos locales, especialmente en presencia de la restricción de volatilidad activa. Sin multi-start, dependiendo del punto inicial, el solver podría devolver una cartera subóptima.
+
+\paragraph{Fallback inteligente.} Si \emph{ningún} start converge, calculamos la cartera de mínima varianza global. Si su volatilidad ya supera el límite del usuario, lanzamos un error con un mensaje muy específico que le indica el límite mínimo alcanzable. Si está dentro del límite, la usamos como respuesta (es la mejor que podemos dar).
+
+\subsection{Frontera Eficiente}
+
+\begin{lstlisting}[language=Python,caption={\texttt{calcular\_frontera}}]
+def calcular_frontera(self, n_puntos: int = 50) -> list[dict]:
+    n = len(self.tickers)
+    cov_matrix = self.calcular_matriz_covarianza().values
+    mean_returns = self.returns.mean().values * 252
+
+    ret_min = float(np.min(mean_returns))
+    ret_max = float(np.max(mean_returns))
+
+    frontier = []
+    for target in np.linspace(ret_min, ret_max, n_puntos):
+        constraints = [
+            {"type": "eq", "fun": lambda w: float(np.sum(w)) - 1.0},
+            {"type": "eq", "fun": lambda w, t=target: float(np.dot(w, mean_returns)) - t},
+        ]
+        bounds = [(0.0, 1.0)] * n
+        result = minimize(
+            lambda w: self._portfolio_vol(w, cov_matrix),
+            np.ones(n) / n,
+            method="SLSQP", bounds=bounds, constraints=constraints,
+            options={"ftol": 1e-9, "maxiter": 500},
+        )
+        if result.success:
+            vol = self._portfolio_vol(result.x, cov_matrix)
+            sharpe = (target - RISK_FREE_RATE) / vol if vol > 1e-10 else 0.0
+            frontier.append({"retorno": round(target * 100, 3),
+                             "volatilidad": round(vol * 100, 3),
+                             "sharpe": round(sharpe, 4)})
+    return frontier
+\end{lstlisting}
+
+\paragraph{Construcción punto a punto.} Para cada nivel de retorno objetivo $\mu^*$ entre $\min(\mu)$ y $\max(\mu)$, resolvemos el problema de Markowitz dual: minimizar la varianza con la restricción $w^\top \mu = \mu^*$ añadida. El conjunto de soluciones forma la frontera eficiente.
+
+\paragraph{Truco con \texttt{lambda w, t=target}.} El parámetro \texttt{t=target} captura el valor de \texttt{target} en cada iteración (\textit{closure trick} de Python). Sin esto, todas las lambdas referenciarían la misma variable y devolverían siempre el último valor del bucle.
+
+\paragraph{Visualización.} En el frontend se dibuja como \textit{scatter plot} con eje X = volatilidad, eje Y = retorno. La cartera de máximo Sharpe es el punto donde la recta tangente desde $(0, r_f)$ toca la frontera (\emph{Capital Market Line}).
+
+\subsection{Frontera de Pareto Sharpe-vs-Sortino}
+
+\begin{lstlisting}[language=Python,caption={\texttt{frontera\_pareto} (resumida)}]
+def frontera_pareto(self, n_puntos: int = 20) -> list[dict]:
+    cov_matrix = self.calcular_matriz_covarianza().values
+    mean_returns = self.returns.mean().values * 252
+
+    candidatos: list[dict] = []
+    for theta in np.linspace(0.0, 1.0, n_puntos):
+        def objetivo(w, t=float(theta)):
+            vol = self._portfolio_vol(w, cov_matrix)
+            ann_ret = float(np.dot(w, mean_returns))
+            sharpe  = (ann_ret - RISK_FREE_RATE) / vol if vol > 1e-10 else 0.0
+            sortino = self._portfolio_sortino(w, mean_returns)
+            return -(t * sharpe + (1.0 - t) * sortino)
+        # ... multi-start SLSQP (similar a los otros métodos)
+        # añadimos el resultado a candidatos
+
+    def dominado(p, todos):
+        return any(
+            q["sharpe"] >= p["sharpe"] and q["sortino"] >= p["sortino"]
+            and (q["sharpe"] > p["sharpe"] or q["sortino"] > p["sortino"])
+            for q in todos if q is not p
+        )
+    return [p for p in candidatos if not dominado(p, candidatos)]
+\end{lstlisting}
+
+\paragraph{Idea: optimización multi-objetivo escalarizada.} Para cada $\theta \in [0,1]$ optimizamos una combinación lineal: $\theta \cdot \mathrm{Sharpe} + (1-\theta) \cdot \mathrm{Sortino}$. Variando $\theta$ recorremos distintos compromisos entre las dos métricas.
+
+\paragraph{Filtrado de dominados.} Un punto $P$ está dominado si existe otro punto $Q$ con Sharpe $\ge$ y Sortino $\ge$ y al menos uno estrictamente mayor. Esos puntos no aportan información: cualquier inversor preferiría $Q$ a $P$. Quitándolos nos quedamos solo con el frente de Pareto: el conjunto de carteras donde no se puede mejorar una métrica sin empeorar la otra.
+
+\paragraph{Por qué Sortino y no varianza.} El ratio de Sortino castiga solo la volatilidad bajista (las desviaciones negativas), no las subidas. Para inversores que ven con buenos ojos la volatilidad al alza pero malos ojos las caídas, Sortino refleja mejor su utilidad subjetiva.
+
+\subsection{Despachador principal y métricas adicionales}
+
+\begin{lstlisting}[language=Python,caption={\texttt{optimizar} (cabecera y métricas)}]
+def optimizar(self, max_volatilidad: float, capital: float,
+              metodo: str = "markowitz") -> dict:
+    if metodo not in METODOS_SOPORTADOS:
+        raise ValueError(f"Método desconocido: '{metodo}'")
+
+    cov_matrix = self.calcular_matriz_covarianza().values
+    mean_returns = self.returns.mean().values * 252
+
+    if metodo == "markowitz":
+        weights = self._max_sharpe(cov_matrix, mean_returns, max_volatilidad)
+    elif metodo == "min_variance":
+        weights = self._min_varianza(cov_matrix)
+    elif metodo == "risk_parity":
+        weights = self._risk_parity(cov_matrix)
+    elif metodo == "equal_weight":
+        weights = self._equal_weight()
+    elif metodo == "min_cvar":
+        weights = self._min_cvar()
+
+    port_return = float(np.dot(weights, mean_returns))
+    port_vol = self._portfolio_vol(weights, cov_matrix)
+    sharpe = (port_return - RISK_FREE_RATE) / port_vol if port_vol > 1e-10 else 0.0
+
+    # Diversification Ratio (Choueifaty)
+    individual_vols = np.sqrt(np.diag(cov_matrix))
+    weighted_avg_vol = float(np.dot(weights, individual_vols))
+    diversification_ratio = weighted_avg_vol / port_vol if port_vol > 1e-10 else 1.0
+    # HHI y activos efectivos
+    hhi = float(np.sum(weights ** 2))
+    n_efectivos = 1.0 / hhi if hhi > 1e-10 else float(len(self.tickers))
+    # CVaR 95% diario y anualizado
+    port_daily = self.returns.values @ weights
+    var_95 = float(np.percentile(-port_daily, 95))
+    tail = (-port_daily)[(-port_daily) >= var_95]
+    cvar_95 = float(tail.mean()) if len(tail) > 0 else var_95
+    cvar_95_anual = cvar_95 * np.sqrt(252)
+
+    # ... return dict con todos los campos
+\end{lstlisting}
+
+\paragraph{Patrón despachador.} \texttt{optimizar} es el único método público. Recibe el identificador de método y delega en el privado correspondiente. Esto mantiene la API simple desde fuera y permite añadir métodos futuros sin cambiar la firma.
+
+\paragraph{Métricas devueltas siempre.} Independientemente del método elegido, calculamos seis métricas:
+\begin{itemize}
+  \item \textbf{Retorno y volatilidad} del portfolio resultante.
+  \item \textbf{Sharpe Ratio}.
+  \item \textbf{Diversification Ratio (DR)}: $\frac{w^\top \sigma}{\sigma_p}$. Vale 1 cuando los activos están perfectamente correlacionados, mayor cuando hay diversificación efectiva. Choueifaty (2008).
+  \item \textbf{HHI (concentración)}: $\sum w_i^2$. Desde $1/N$ (uniforme) hasta $1$ (todo en un activo).
+  \item \textbf{Activos efectivos}: $1/\mathrm{HHI}$. Si tu cartera está al 1/N en 5 activos, tendrías 5 efectivos.
+  \item \textbf{CVaR 95\,\%}: pérdida media en el peor 5\,\% de días, en porcentaje. Diaria y anualizada (multiplicada por $\sqrt{252}$).
+\end{itemize}
+
+\paragraph{Por qué calcular CVaR siempre.} Aunque el método elegido sea Markowitz, exponer el CVaR permite al usuario \emph{comparar el riesgo de cola} entre métodos. Por ejemplo, Markowitz puede tener mejor Sharpe pero peor CVaR que Risk Parity --- una información clave para decidir.
+
+% =============================================================================
+\chapter{Motor de backtesting}
+% =============================================================================
+
+\section{\texttt{backend/backtesting/engine.py}}
+
+Este módulo simula el comportamiento histórico de una cartera con pesos fijos. Es el equivalente "hacia atrás en el tiempo" del Monte Carlo: en lugar de proyectar el futuro, contesta a la pregunta «¿qué habría pasado si hubiera invertido en esta cartera hace X años?».
+
+\subsection{Constantes globales}
+
+\begin{lstlisting}[language=Python]
+RISK_FREE_RATE = 0.02
+CRISIS_PERIODS = {
+    "covid": ("2020-02-19", "2020-03-23"),
+    "lehman": ("2008-09-01", "2009-03-09"),
+    "correccion_2022": ("2022-01-03", "2022-10-12"),
+}
+
+_REBALANCING_FREQ: dict[str, str] = {
+    "ninguno":    "",
+    "anual":      "YE",
+    "semestral":  "2QE",
+    "trimestral": "QE",
+    "mensual":    "ME",
+}
+\end{lstlisting}
+
+\paragraph{\texttt{CRISIS\_PERIODS}.} Tres ventanas de estrés financiero predefinidas. El motor calcula métricas separadas para cada una de ellas, lo que permite al usuario contestar «¿cómo se habría comportado mi cartera durante el COVID?». Las fechas son los picos y valles canónicos de cada crisis.
+
+\paragraph{\texttt{\_REBALANCING\_FREQ}.} Mapeo entre el identificador legible (\texttt{"trimestral"}) y la cadena de \texttt{pandas.resample} (\texttt{"QE"} = Quarter End). Estas son las cadenas de la API moderna de pandas (\texttt{Y}, \texttt{Q}, \texttt{M} están deprecated en favor de \texttt{YE}, \texttt{QE}, \texttt{ME}).
+
+\subsection{Función \texttt{\_calcular\_metricas}}
+
+\begin{lstlisting}[language=Python,caption={Cálculo de las 8 métricas de riesgo}]
+def _calcular_metricas(precio_serie, benchmark_serie=None) -> dict:
+    retornos = precio_serie.pct_change().dropna()
+    rentabilidad_acumulada = float((precio_serie.iloc[-1] / precio_serie.iloc[0]) - 1)
+    n_dias = max(len(retornos), 1)
+    volatilidad = float(retornos.std() * np.sqrt(252))
+    retorno_anualizado = float((1 + rentabilidad_acumulada) ** (252 / n_dias) - 1)
+    sharpe = (retorno_anualizado - RISK_FREE_RATE) / volatilidad if volatilidad > 1e-10 else 0.0
+
+    # Max drawdown
+    acumulado = (1 + retornos).cumprod()
+    maximo_historico = acumulado.cummax()
+    drawdown = (acumulado - maximo_historico) / maximo_historico
+    max_drawdown = float(drawdown.min())
+
+    # Sortino
+    retornos_negativos = retornos[retornos < 0]
+    downside_vol = float(retornos_negativos.std() * np.sqrt(252)) if len(retornos_negativos) > 1 else 1e-10
+    sortino = (retorno_anualizado - RISK_FREE_RATE) / downside_vol if downside_vol > 1e-10 else 0.0
+
+    # Calmar
+    calmar = retorno_anualizado / abs(max_drawdown) if abs(max_drawdown) > 1e-10 else 0.0
+\end{lstlisting}
+
+\paragraph{Rentabilidad acumulada.} $\frac{V_T}{V_0} - 1$. Es el retorno total durante todo el periodo, sin anualizar.
+
+\paragraph{Retorno anualizado (CAGR).} $(1 + R)^{252/n} - 1$. Convierte la rentabilidad total en una tasa anual equivalente. \texttt{n\_dias} es el número de días \emph{de cotización} con dato (no días naturales). Esta es la fórmula del interés compuesto.
+
+\paragraph{Volatilidad anualizada.} $\sigma_{\mathrm{diaria}} \cdot \sqrt{252}$. La raíz cuadrada del tiempo es la convención porque la varianza escala linealmente con el tiempo (asumiendo retornos i.i.d.), así que la desviación típica escala con $\sqrt{t}$.
+
+\paragraph{Maximum Drawdown.} La peor caída desde un máximo histórico. Algoritmo:
+\begin{enumerate}
+  \item \texttt{acumulado = cumprod(1 + r)}: equity curve a partir de retornos.
+  \item \texttt{maximo\_historico = cummax(acumulado)}: para cada día, el máximo hasta ese día.
+  \item \texttt{drawdown = (acumulado - max\_hist) / max\_hist}: caída relativa respecto al pico previo.
+  \item \texttt{max\_drawdown = drawdown.min()}: el peor (más negativo) de todos.
+\end{enumerate}
+
+\paragraph{Sortino Ratio.} Como Sharpe pero el denominador es la volatilidad bajista (desviación típica de los retornos negativos). Ignora la volatilidad alcista, que para el inversor no es "riesgo".
+
+\paragraph{Calmar Ratio.} Retorno anualizado dividido por el valor absoluto del max drawdown. Indica cuánto retorno generas por unidad de "peor pérdida histórica".
+
+\begin{lstlisting}[language=Python,caption={Beta respecto al benchmark}]
+if benchmark_serie is not None:
+    ret_bench = benchmark_serie.pct_change().dropna()
+    ret_common = retornos.align(ret_bench, join="inner")[0]
+    bench_common = ret_bench.align(retornos, join="inner")[0]
+    if len(ret_common) > 2:
+        cov = float(np.cov(ret_common.values, bench_common.values)[0][1])
+        var_bench = float(np.var(bench_common.values, ddof=1))
+        resultado["beta"] = round(cov / var_bench, 4) if var_bench > 1e-10 else 0.0
+\end{lstlisting}
+
+\paragraph{Beta.} $\beta = \frac{\mathrm{cov}(R_p, R_b)}{\mathrm{var}(R_b)}$. Mide la sensibilidad de la cartera al benchmark. $\beta = 1$ significa que se mueve al unísono; $\beta > 1$ amplifica los movimientos; $\beta < 1$ los amortigua. La función \texttt{align} alinea las dos series por fecha (intersección) antes de calcular la covarianza, importante si por algún motivo no comparten exactamente el mismo calendario.
+
+\subsection{Constructor: descarga + descomposición precio/dividendos}
+
+\begin{lstlisting}[language=Python,caption={\texttt{BacktestEngine.\_\_init\_\_}}]
+class BacktestEngine:
+    def __init__(self, tickers, pesos, periodo="5y",
+                 fecha_inicio=None, fecha_fin=None,
+                 rebalanceo="ninguno", comision_pct=0.0):
+        if rebalanceo not in _REBALANCING_FREQ:
+            raise ValueError(f"Frecuencia inválida: '{rebalanceo}'")
+        if comision_pct < 0 or comision_pct > 5:
+            raise ValueError("La comisión debe estar entre 0 y 5 %.")
+
+        self.rebalanceo = rebalanceo
+        self.comision = comision_pct / 100.0
+        connector = MarketDataConnector()
+
+        precios_total: dict = {}
+        precios_solo: dict = {}
+        dividendos: dict = {}
+        for ticker in tickers:
+            df_full = connector.get_historical_full(ticker, periodo, fecha_inicio, fecha_fin)
+            df_full = df_full.set_index("fecha")
+            precios_total[ticker] = df_full["precio_total_return"]
+            precios_solo[ticker]  = df_full["precio"]
+            dividendos[ticker]    = df_full["dividendo"]
+
+        df_spy = connector.get_historical_prices("SPY", periodo, fecha_inicio, fecha_fin)
+        precios_total["SPY"] = df_spy.set_index("fecha")["valor_liquidativo"]
+
+        # ... DataFrames y self.* attributes
+\end{lstlisting}
+
+\paragraph{Tres datasets paralelos.} El motor mantiene tres DataFrames con el mismo índice de fechas:
+\begin{itemize}
+  \item \texttt{price\_df}: precios \emph{total return} (con dividendos reinvertidos). El optimizador y el backtest principal trabajan sobre este.
+  \item \texttt{price\_only\_df}: precios \emph{sin dividendos}. Sirve para descomponer el retorno y aislar la contribución dividendaria.
+  \item \texttt{div\_df}: dividendos brutos pagados cada día. Sirve para calcular ingresos anuales en €.
+\end{itemize}
+
+\paragraph{Benchmark hardcodeado: SPY.} El benchmark contra el que se compara la cartera siempre es SPY. Para un TFG es aceptable; para un producto serio convendría parametrizarlo.
+
+\subsection{Buy and Hold sin rebalanceo}
+
+\begin{lstlisting}[language=Python]
+def _serie_cartera_simple(self, df: pd.DataFrame) -> pd.Series:
+    retornos = df[self.tickers].pct_change().dropna()
+    retorno_cartera = sum(
+        retornos[t] * self.pesos.get(t, 0.0) for t in self.tickers
+    )
+    return (1 + retorno_cartera).cumprod() * 100
+\end{lstlisting}
+
+\paragraph{Algoritmo trivial.} Para cada día, el retorno de la cartera es la suma ponderada de los retornos de los activos. Compongo: $V_t = V_{t-1} \cdot (1 + r_{p,t})$. Empiezo en 100 (base 100 es la convención).
+
+\paragraph{Limitación.} Con buy-and-hold, los pesos efectivos derivan: si NVDA sube un 200\,\% mientras BND no se mueve, su peso real al final del periodo es muy superior al objetivo. Esto puede o no ser realista según lo que el usuario quiera medir, pero es importante reconocerlo. Por eso ofrecemos también la versión con rebalanceo.
+
+\subsection{Simulación con rebalanceo y comisiones}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_serie\_cartera\_rebalanceada} (núcleo)}]
+def _serie_cartera_rebalanceada(self, df) -> tuple[pd.Series, list[dict]]:
+    precios = df[self.tickers].dropna()
+    retornos = precios.pct_change().fillna(0.0)
+
+    target = pd.Series(self.pesos, index=self.tickers)
+    target = target / target.sum()
+
+    freq = _REBALANCING_FREQ[self.rebalanceo]
+    if freq:
+        marcadores = precios.resample(freq).last().index
+        indice = precios.index
+        fechas_rebal = set()
+        for m in marcadores:
+            pos = indice.searchsorted(m)
+            if pos < len(indice):
+                fechas_rebal.add(indice[pos])
+        fechas_rebal.discard(indice[0])
+    else:
+        fechas_rebal = set()
+
+    pesos = target.copy()
+    valor = 100.0
+    valores: list[float] = []
+    eventos: list[dict] = []
+
+    for fecha in precios.index:
+        r = retornos.loc[fecha]
+        crecimiento = float((pesos * (1 + r)).sum())
+        if crecimiento <= 1e-10:
+            valor = 0.0
+            valores.append(valor)
+            continue
+        valor *= crecimiento
+        pesos = (pesos * (1 + r)) / crecimiento
+
+        if fecha in fechas_rebal:
+            turnover = float((pesos - target).abs().sum() / 2.0)
+            coste = turnover * 2 * self.comision
+            valor *= (1 - coste)
+            pesos = target.copy()
+            if turnover > 1e-6:
+                eventos.append({
+                    "fecha": str(fecha.date()),
+                    "turnover": round(turnover, 4),
+                    "coste_pct": round(coste * 100, 4),
+                })
+        valores.append(valor)
+
+    serie = pd.Series(valores, index=precios.index)
+    return serie, eventos
+\end{lstlisting}
+
+\paragraph{Paso 1 --- Identificar fechas de rebalanceo.} \texttt{resample("QE").last()} agrupa los precios por trimestre y devuelve el último día de cada uno. Esos son los \emph{marcadores}. Como esas fechas pueden caer en fin de semana o festivo, las mapeamos a la siguiente fecha de cotización con \texttt{searchsorted}. Quitamos la primera (no rebalanceamos en t=0, ya partimos en target).
+
+\paragraph{Paso 2 --- Bucle día a día.} El estado son dos cosas: los pesos efectivos (que derivan con los retornos) y el valor de la cartera. Cada día:
+\begin{enumerate}
+  \item \texttt{crecimiento = sum(pesos * (1+r))}: factor de crecimiento de la cartera ese día.
+  \item Multiplicamos \texttt{valor} por ese crecimiento.
+  \item Renormalizamos los pesos efectivos: \texttt{pesos = pesos·(1+r) / crecimiento}.
+\end{enumerate}
+
+\paragraph{Guard contra colapso total.} Si \texttt{crecimiento <= 1e-10} (todos los activos pierden 100\,\%), evitamos dividir por cero y dejamos el valor en 0.
+
+\paragraph{Paso 3 --- Rebalanceo y coste.} En las fechas de rebalanceo:
+\[ \mathrm{turnover} = \tfrac{1}{2}\sum_i |w_i^{\mathrm{actual}} - w_i^*| \]
+Es la mitad de la suma de desviaciones absolutas (la mitad porque cada euro que sale de un activo entra en otro: contar los dos lados duplicaría). Después aplicamos un \emph{haircut}: $\text{valor} \cdot (1 - \mathrm{turnover} \cdot 2 \cdot c)$. El factor 2 refleja que rebalancear implica vender Y comprar, así que pagamos comisión dos veces.
+
+\paragraph{Eventos.} Solo registramos eventos con turnover significativo (\texttt{> 1e-6}) para no llenar el log con micro-rebalanceos numéricamente vacíos.
+
+\subsection{Cálculo de dividendos anuales}
+
+\begin{lstlisting}[language=Python,caption={\texttt{\_calcular\_dividendos}}]
+def _calcular_dividendos(self) -> dict:
+    if self.price_only_df.empty:
+        return {"ingresos_anuales": [], "yield_promedio_anual": 0.0, "ingresos_totales": 0.0}
+
+    precio_inicial = self.price_only_df.iloc[0]
+    div_por_euro = self.div_df.divide(precio_inicial, axis=1).fillna(0.0)
+    peso_serie = pd.Series(self.pesos)
+    div_cartera = div_por_euro[self.tickers].multiply(peso_serie, axis=1).sum(axis=1)
+    div_cartera_por_100 = div_cartera * 100
+
+    div_anuales = div_cartera_por_100.groupby(div_cartera_por_100.index.year).sum()
+    ingresos_anuales = [
+        {"año": int(año), "importe_por_100": round(float(imp), 4)}
+        for año, imp in div_anuales.items()
+        if imp > 0
+    ]
+    ingresos_totales = float(div_cartera_por_100.sum())
+    n_dias = len(self.price_only_df)
+    n_años = max(n_dias / 252.0, 1.0)
+    yield_promedio = ingresos_totales / n_años
+
+    return {
+        "ingresos_anuales": ingresos_anuales,
+        "yield_promedio_anual": round(yield_promedio, 4),
+        "ingresos_totales": round(ingresos_totales, 4),
+    }
+\end{lstlisting}
+
+\paragraph{Idea.} Para cada ticker, dividir cada dividendo bruto entre el precio inicial. Esto nos da \emph{dividendos por euro invertido en t=0}. Sumando ponderado por pesos obtenemos los dividendos por euro invertido en la cartera. Multiplicando por 100 lo expresamos en \emph{€ por cada 100€ invertidos}.
+
+\paragraph{Agrupación anual.} \texttt{groupby(index.year).sum()} agrega los dividendos diarios por año. Solo conservamos años con $> 0$ (algunos pueden no tener pagos si la cartera es de no-dividendo).
+
+\paragraph{Yield promedio anual.} Total acumulado dividido por número de años. Es una estimación del yield medio efectivo de la cartera durante el periodo.
+
+\subsection{Análisis de crisis}
+
+\begin{lstlisting}[language=Python]
+def analizar_crisis(self) -> dict:
+    precio_cartera = self._cartera_precio_serie()
+    precio_spy = self.price_df["SPY"].loc[precio_cartera.index]
+    precio_spy_norm = precio_spy / precio_spy.iloc[0] * 100
+
+    resultado: dict[str, dict] = {}
+    for nombre, (inicio, fin) in CRISIS_PERIODS.items():
+        inicio_dt = pd.Timestamp(inicio)
+        fin_dt = pd.Timestamp(fin)
+        tramo_cartera = precio_cartera.loc[inicio_dt:fin_dt]
+        tramo_spy = precio_spy_norm.loc[inicio_dt:fin_dt]
+
+        if tramo_cartera.empty or len(tramo_cartera) < 2:
+            resultado[nombre] = {"disponible": False}
+            continue
+
+        metricas_cartera = _calcular_metricas(tramo_cartera, benchmark_serie=tramo_spy)
+        metricas_spy = _calcular_metricas(tramo_spy)
+
+        resultado[nombre] = {
+            "disponible": True,
+            "periodo": {"inicio": inicio, "fin": fin},
+            "cartera": metricas_cartera,
+            "benchmark": metricas_spy,
+        }
+    return resultado
+\end{lstlisting}
+
+\paragraph{Recortar la serie por crisis.} \texttt{precio\_cartera.loc[inicio\_dt:fin\_dt]} extrae el tramo correspondiente. Si el periodo elegido por el usuario no cubre la crisis (p.\ ej.\ 5y de backtest no incluye Lehman), el tramo queda vacío y devolvemos \texttt{disponible: False}, que el frontend muestra con un mensaje contextual.
+
+\paragraph{Métricas en el tramo.} Las mismas que en la serie completa, pero restringidas a la crisis. Esto permite ver, por ejemplo, qué drawdown sufrió la cartera durante COVID o cómo de bajo cayó el Sharpe en Lehman.
+
+% =============================================================================
+\chapter{Simulación Monte Carlo}
+% =============================================================================
+
+\section{\texttt{backend/optimizer/montecarlo.py}}
+
+Proyecta el comportamiento futuro de la cartera mediante \emph{bootstrap histórico}. La elección metodológica frente al modelo paramétrico Gaussiano es uno de los puntos más defendibles del TFG.
+
+\subsection{Constructor}
+
+\begin{lstlisting}[language=Python,caption={\texttt{MonteCarloSimulator.\_\_init\_\_}}]
+class MonteCarloSimulator:
+    def __init__(self, tickers, pesos, period="5y"):
+        connector = MarketDataConnector()
+        prices: dict = {}
+        for ticker in tickers:
+            df = connector.get_historical_prices(ticker, period)
+            prices[ticker] = df.set_index("fecha")["valor_liquidativo"]
+
+        price_df = pd.DataFrame(prices).dropna()
+        if len(price_df) < 60:
+            raise ValueError("Histórico insuficiente para Monte Carlo (necesito al menos 60 días).")
+
+        returns = price_df.pct_change().dropna()
+        weights_arr = np.array([pesos.get(t, 0.0) for t in price_df.columns])
+        total_pesos = float(weights_arr.sum())
+        if total_pesos < 1e-10:
+            raise ValueError("La suma de los pesos es cero.")
+        weights_arr = weights_arr / total_pesos
+        self.daily_portfolio_returns: np.ndarray = (returns.values @ weights_arr)
+        self.tickers = list(price_df.columns)
+\end{lstlisting}
+
+\paragraph{Periodo histórico de 5 años por defecto.} Cuanto más histórico, más diverso el conjunto de retornos diarios disponibles para el bootstrap. Pero demasiado histórico (15+ años) introduce regímenes ya obsoletos. 5 años es el compromiso.
+
+\paragraph{Validación de tamaño.} Se requieren al menos 60 días de histórico común. Con menos, el bootstrap es estadísticamente pobre.
+
+\paragraph{Cálculo del vector de retornos diarios de la cartera.} \texttt{returns.values @ weights\_arr} es una multiplicación matricial: para cada día, el retorno de la cartera es el producto escalar de los retornos diarios por los pesos. Esto deja un único vector unidimensional de tamaño $T$ (número de días) que es la "muestra" de la que tiraremos para el bootstrap.
+
+\subsection{Simulación: bootstrap vectorizado}
+
+\begin{lstlisting}[language=Python,caption={\texttt{simular} (vectorización en NumPy)}]
+def simular(self, años=10, n_simulaciones=5000, capital_inicial=10_000.0, seed=42) -> dict:
+    if not (1 <= años <= 40):
+        raise ValueError("El horizonte debe estar entre 1 y 40 años.")
+    if not (100 <= n_simulaciones <= 20_000):
+        raise ValueError("n_simulaciones debe estar entre 100 y 20 000.")
+
+    n_dias = años * DIAS_TRADING_AÑO
+    rng = np.random.default_rng(seed)
+
+    idx = rng.integers(
+        0, len(self.daily_portfolio_returns),
+        size=(n_simulaciones, n_dias),
+    )
+    sampled = self.daily_portfolio_returns[idx]
+    equity = capital_inicial * np.cumprod(1.0 + sampled, axis=1)
+    equity = np.concatenate(
+        [np.full((n_simulaciones, 1), capital_inicial), equity],
+        axis=1,
+    )
+\end{lstlisting}
+
+\paragraph{Bootstrap en una línea.} \texttt{rng.integers(0, T, size=(S, D))} genera una matriz $S \times D$ de índices aleatorios entre 0 y T (con reemplazo, porque los índices pueden repetirse). \texttt{self.daily\_portfolio\_returns[idx]} indexa con esa matriz: cada fila es una simulación distinta de retornos diarios.
+
+\paragraph{Compounding vectorizado.} \texttt{np.cumprod(1.0 + sampled, axis=1)} calcula el producto acumulado fila a fila. Multiplicado por \texttt{capital\_inicial} da el equity curve de cada simulación. Esto sucede en \emph{paralelo} para las 5\,000 simulaciones, sin bucle Python --- por eso es tan rápido (~270 ms para 5000 × 10y).
+
+\paragraph{Insertar el día 0.} Las trayectorias generadas empiezan en el día 1. Con \texttt{np.concatenate} antepongo una columna de \texttt{capital\_inicial} para que las curvas partan visualmente del valor inicial.
+
+\subsection{Muestreo mensual y cálculo de percentiles}
+
+\begin{lstlisting}[language=Python]
+step = 21
+idx_muestra = list(range(0, equity.shape[1], step))
+if idx_muestra[-1] != equity.shape[1] - 1:
+    idx_muestra.append(equity.shape[1] - 1)
+equity_mensual = equity[:, idx_muestra]
+meses = np.array([i / DIAS_TRADING_AÑO * 12 for i in idx_muestra])
+
+percentiles_mat = np.percentile(equity_mensual, PERCENTILES_TRAYECTORIA, axis=0)
+trayectoria = []
+for j, mes_float in enumerate(meses):
+    trayectoria.append({
+        "año":  round(float(mes_float / 12), 3),
+        "p5":   round(float(percentiles_mat[0, j]), 2),
+        "p25":  round(float(percentiles_mat[1, j]), 2),
+        "p50":  round(float(percentiles_mat[2, j]), 2),
+        "p75":  round(float(percentiles_mat[3, j]), 2),
+        "p95":  round(float(percentiles_mat[4, j]), 2),
+    })
+\end{lstlisting}
+
+\paragraph{¿Por qué muestrear cada 21 días?} 252 días/año $/$ 12 meses $\approx$ 21 días/mes. Para una proyección de 30 años son 7560 puntos diarios; 360 mensuales caben perfectamente en el frontend sin saturar la gráfica.
+
+\paragraph{Percentiles temporales.} Para cada paso temporal, ordeno las 5000 simulaciones por valor y extraigo los percentiles 5, 25, 50, 75, 95. Estos cinco números resumen la distribución completa de resultados posibles en cada momento.
+
+\paragraph{Visualización.} El frontend pinta esto como \emph{fan chart}: dos bandas (5--95 y 25--75) con opacidad creciente y una línea sólida en la mediana (p50). Es el gráfico característico de las predicciones probabilísticas.
+
+\subsection{Estadísticos del valor final y CAGR}
+
+\begin{lstlisting}[language=Python]
+finales = equity[:, -1]
+valor_final = {
+    "media":    float(np.mean(finales)),
+    "mediana":  float(np.percentile(finales, 50)),
+    "std":      float(np.std(finales, ddof=1)),
+    "p5":       float(np.percentile(finales, 5)),
+    # ... p25, p75, p95, min, max
+}
+
+prob_perdida = float(np.mean(finales < capital_inicial))
+prob_doblar  = float(np.mean(finales >= 2 * capital_inicial))
+prob_triplicar = float(np.mean(finales >= 3 * capital_inicial))
+
+cagrs = (finales / capital_inicial) ** (1.0 / años) - 1.0
+cagr_estadisticas = {
+    "p5":     round(float(np.percentile(cagrs, 5)) * 100, 3),
+    "p50":    round(float(np.percentile(cagrs, 50)) * 100, 3),
+    "p95":    round(float(np.percentile(cagrs, 95)) * 100, 3),
+    "media":  round(float(np.mean(cagrs)) * 100, 3),
+}
+\end{lstlisting}
+
+\paragraph{Probabilidades clave.} \texttt{np.mean(finales < capital\_inicial)} es la fracción de simulaciones que acabaron por debajo del capital inicial. Multiplicada por 100 es el porcentaje de pérdida. Igual para doblar y triplicar.
+
+\paragraph{CAGR percentilado.} Para cada simulación calculo el CAGR equivalente. Después extraigo percentiles. El \texttt{p50} es la "rentabilidad anual típica esperable", el p5 el "peor caso razonable", el p95 el "mejor caso razonable".
+
+\subsection{Histograma logarítmico}
+
+\begin{lstlisting}[language=Python]
+log_finales = np.log10(np.clip(finales, 1.0, None))
+counts, edges = np.histogram(log_finales, bins=N_BINS_HISTOGRAMA)
+histograma = [
+    {
+        "valor_min": round(10 ** edges[i], 2),
+        "valor_max": round(10 ** edges[i + 1], 2),
+        "frecuencia": int(counts[i]),
+    }
+    for i in range(len(counts))
+]
+\end{lstlisting}
+
+\paragraph{Por qué bins logarítmicos.} La distribución del valor final tras N años de compounding es \emph{log-normal} aproximadamente. La cola derecha es muy larga (un escenario optimista a 30 años puede dejar el capital ×100 mientras el escenario malo lo deja ×0.5). En escala lineal, la cola se aplasta y se pierde resolución. En escala logarítmica el histograma queda mucho más legible.
+
+\paragraph{\texttt{np.clip(finales, 1.0, None)}.} Protege contra valores cero o negativos antes del logaritmo. Si una simulación acabó en 0 (escenario apocalíptico), la mapeo a 1 (suficiente para que \texttt{log10} no falle).
+
+% =============================================================================
+\chapter{Análisis fiscal español}
+% =============================================================================
+
+\section{\texttt{backend/optimizer/fiscalidad.py}}
+
+Cuantifica el impacto del IRPF de la base del ahorro y compara dos vehículos: ETF distributivo (paga dividendos cada año) vs Fondo de Inversión / ETF acumulativo (con diferimiento fiscal).
+
+\subsection{Constantes y tramos IRPF}
+
+\begin{lstlisting}[language=Python]
+TRAMOS_IRPF_AHORRO: list[tuple[float | None, float]] = [
+    (    6_000.0, 0.19),
+    (   50_000.0, 0.21),
+    (  200_000.0, 0.23),
+    (  300_000.0, 0.27),
+    (        None, 0.28),
+]
+
+RETENCION_DIVIDENDOS = 0.19
+\end{lstlisting}
+
+\paragraph{Tramos vigentes 2025.} Cada tupla es \texttt{(límite\_superior, tipo)}. El último tramo tiene \texttt{None} como límite superior (es decir, todo lo que está por encima de 300\,000\,€).
+
+\paragraph{Retención dividendos.} 19\,\% es la retención a cuenta del IRPF en España. Se aplica al cobrar el dividendo y se regulariza en la declaración anual. En este modelo simplificado la trato como tipo final cuando la base anual no supera los 6\,000\,€ (lo cual es razonable para un dividendo modesto).
+
+\subsection{Cálculo del IRPF progresivo}
+
+\begin{lstlisting}[language=Python]
+def calcular_irpf_ahorro(base: float) -> dict:
+    if base <= 0:
+        return {"total": 0.0, "tipo_efectivo": 0.0, "desglose": []}
+
+    desglose = []
+    pagado = 0.0
+    inicio = 0.0
+    for limite, tipo in TRAMOS_IRPF_AHORRO:
+        if limite is None:
+            tramo_base = base - inicio
+        else:
+            tramo_base = min(base, limite) - inicio
+        if tramo_base <= 0:
+            break
+        importe = tramo_base * tipo
+        pagado += importe
+        desglose.append({
+            "desde":  round(inicio, 2),
+            "hasta":  round(min(base, limite) if limite is not None else base, 2),
+            "tipo":   tipo,
+            "base":   round(tramo_base, 2),
+            "cuota":  round(importe, 2),
+        })
+        if limite is None or base <= limite:
+            break
+        inicio = limite
+\end{lstlisting}
+
+\paragraph{Aplicación progresiva.} Para una base de 100\,000\,€ paga: 19\,\% sobre los primeros 6\,000, 21\,\% sobre los siguientes 44\,000 (de 6 a 50k), 23\,\% sobre los últimos 50\,000 (de 50 a 100k). El bucle recorre los tramos hasta que la base se agota.
+
+\paragraph{Devuelve desglose.} Junto al total, devuelve la cuota tramo a tramo. Esto permite al frontend mostrar una tabla didáctica con cada nivel marginal.
+
+\subsection{Simulación ETF distributivo}
+
+\begin{lstlisting}[language=Python,caption={\texttt{simular\_etf\_distributivo}}]
+def simular_etf_distributivo(capital, años, cagr_total, yield_anual) -> dict:
+    cagr_precio = max(cagr_total - yield_anual, -0.99)
+    valor = capital
+    retenciones_anuales = []
+    dividendos_brutos_anuales = []
+
+    for año in range(1, años + 1):
+        valor *= (1.0 + cagr_precio)
+        dividendo_bruto = valor * yield_anual
+        retencion = dividendo_bruto * RETENCION_DIVIDENDOS
+        valor += dividendo_bruto - retencion
+        retenciones_anuales.append(retencion)
+        dividendos_brutos_anuales.append(dividendo_bruto)
+
+    total_dividendos_brutos = sum(dividendos_brutos_anuales)
+    total_retenciones = sum(retenciones_anuales)
+    total_netos_reinvertidos = total_dividendos_brutos - total_retenciones
+
+    coste_adquisicion = capital + total_netos_reinvertidos
+    plusvalia = max(valor - coste_adquisicion, 0.0)
+    irpf_plusvalia = calcular_irpf_ahorro(plusvalia)
+    valor_final_neto = valor - irpf_plusvalia["total"]
+\end{lstlisting}
+
+\paragraph{Modelo año a año.} El precio crece al CAGR de \emph{precio puro} (CAGR total menos yield). Cada año se cobra el dividendo bruto y se le aplica la retención del 19\,\%. Lo neto se reinvierte (se asume broker low-cost sin comisión).
+
+\paragraph{Detalle clave: la base de coste fiscal.} Esto es lo que arreglamos en una revisión. Los netos reinvertidos cada año amplían la \emph{base de coste} del inversor: cuando vende, no tributa sobre todo lo que tiene menos lo que invirtió originalmente, sino sobre lo que tiene menos (capital inicial + todo lo que reinvirtió). Sin esta corrección, los dividendos se gravarían dos veces (la retención al cobrarlos + la plusvalía al rescatar).
+
+\paragraph{Plusvalía gravable.} $\mathrm{plusvalia} = V_T - (C_0 + \sum_t \mathrm{neto}_t)$. Sobre esa cantidad se aplican los tramos progresivos.
+
+\subsection{Simulación Fondo acumulativo}
+
+\begin{lstlisting}[language=Python]
+def simular_fondo_acumulativo(capital, años, cagr_total) -> dict:
+    valor = capital * (1.0 + cagr_total) ** años
+    plusvalia = max(valor - capital, 0.0)
+    irpf = calcular_irpf_ahorro(plusvalia)
+    valor_final_neto = valor - irpf["total"]
+    return {
+        "vehiculo":          "fondo_acumulativo",
+        "valor_final_bruto": round(valor, 2),
+        "valor_final_neto":  round(valor_final_neto, 2),
+        "plusvalia":         round(plusvalia, 2),
+        "irpf_plusvalia":    irpf,
+        "irpf_total":        irpf["total"],
+    }
+\end{lstlisting}
+
+\paragraph{Diferimiento total.} El capital crece compuesto durante todos los años sin pagar nada. Solo al rescatar se paga IRPF sobre la plusvalía acumulada. Es el famoso \emph{diferimiento fiscal} característico del marco español (Ley 35/2006), peculiar y muy ventajoso a largo plazo.
+
+\paragraph{¿Por qué es ventaja?} Mientras el dinero está dentro del fondo, todo el rendimiento (incluidos los dividendos cobrados internamente) se reinvierte sin haircut fiscal. En el ETF distributivo, parte de cada dividendo se va a Hacienda cada año y deja de generar interés compuesto. A largo plazo, esa fuga continua tiene un coste de oportunidad significativo.
+
+\subsection{Comparativa final}
+
+\begin{lstlisting}[language=Python]
+def comparar(capital, años, retorno_anualizado, yield_anual=0.0) -> dict:
+    if capital <= 0:
+        raise ValueError("El capital debe ser positivo.")
+    if not (1 <= años <= 40):
+        raise ValueError("El horizonte debe estar entre 1 y 40 años.")
+
+    etf  = simular_etf_distributivo(capital, años, retorno_anualizado, yield_anual)
+    fondo = simular_fondo_acumulativo(capital, años, retorno_anualizado)
+
+    diff_neto = fondo["valor_final_neto"] - etf["valor_final_neto"]
+    pct_ahorro = (diff_neto / etf["valor_final_neto"] * 100) if etf["valor_final_neto"] > 0 else 0.0
+    bruto_teorico = capital * (1.0 + retorno_anualizado) ** años
+
+    return {
+        "parametros": {...},
+        "bruto_teorico":   round(bruto_teorico, 2),
+        "etf_distrib":     etf,
+        "fondo_acum":      fondo,
+        "diferimiento": {
+            "ahorro_eur":      round(diff_neto, 2),
+            "ahorro_pct":      round(pct_ahorro, 2),
+            "irpf_etf":        etf["irpf_total"],
+            "irpf_fondo":      fondo["irpf_total"],
+        },
+    }
+\end{lstlisting}
+
+\paragraph{Bruto teórico.} Es lo que tendría el inversor si no existiera la fiscalidad. Se incluye en el resultado para tener un punto de referencia visual --- cuánto se "pierde" en cada vehículo solo por los impuestos.
+
+\paragraph{Ahorro por diferimiento.} Diferencia absoluta y porcentual entre ambos vehículos. Para horizontes largos y yields altos puede ser determinante.
+
+\paragraph{Disclaimer académico.} Este modelo no contempla compensación de pérdidas patrimoniales con rendimientos del capital mobiliario, regla de los 2 meses anti-recompras, casos transfronterizos ni fiscalidad foral. Está documentado explícitamente en la UI y en los docstrings.
+
+% =============================================================================
+\chapter{Capa API: routers y endpoints}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/api/deps.py} --- dependencia de autenticación}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python]
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No autenticado o token inválido",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        user_id = decode_access_token(token)
+    except JWTError:
+        raise credentials_exc
+    user = db.query(Usuario).filter(Usuario.id == int(user_id)).first()
+    if not user:
+        raise credentials_exc
+    return user
+\end{lstlisting}
+
+\paragraph{\texttt{OAuth2PasswordBearer}.} Le indica a FastAPI dónde está el endpoint de login. Esto sirve para que el Swagger UI ofrezca un formulario de "Authorize" funcional.
+
+\paragraph{\texttt{Depends(oauth2\_scheme)}.} Inyecta el token Bearer del header \texttt{Authorization}. Si no hay token, FastAPI ya devuelve 401 automáticamente.
+
+\paragraph{Decodificación + lookup.} Decodifico el JWT (lanza \texttt{JWTError} si la firma no es válida o expiró). El \texttt{sub} del payload es el id del usuario. Hago un SELECT para cargar el objeto. Si por algún motivo el usuario fue borrado pero el token sigue vivo, también devuelvo 401.
+
+\paragraph{Uso.} Cualquier endpoint que añada \texttt{current\_user: Usuario = Depends(get\_current\_user)} a su firma queda automáticamente protegido.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/api/auth.py} --- registro y login}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python,caption={Endpoints de auth}]
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+def register(payload: UserRegister, db: Session = Depends(get_db)):
+    if db.query(Usuario).filter(Usuario.email == payload.email).first():
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+    user = Usuario(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return Token(access_token=create_access_token(str(user.id)))
+
+
+@router.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(Usuario).filter(Usuario.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    return Token(access_token=create_access_token(str(user.id)))
+\end{lstlisting}
+
+\paragraph{Registro.} Se valida que el email no esté ya registrado, se hashea la contraseña con bcrypt y se inserta. Inmediatamente se emite el JWT, así el cliente queda logueado tras registrarse sin necesidad de un login adicional.
+
+\paragraph{Login.} \texttt{OAuth2PasswordRequestForm} es el form-encoded del estándar OAuth2 (campos \texttt{username} y \texttt{password}). Buscamos el usuario por email, verificamos la contraseña con bcrypt (tiempo constante) y emitimos el token.
+
+\paragraph{Respuesta uniforme.} Tanto registro como login devuelven el mismo tipo \texttt{Token}, así el frontend los procesa igual.
+
+\begin{lstlisting}[language=Python,caption={Perfil}]
+@router.get("/profile", response_model=UserProfileOut)
+def get_profile(current_user: Usuario = Depends(get_current_user)):
+    return current_user
+
+@router.put("/profile", response_model=UserProfileOut)
+def update_profile(payload: UserProfileUpdate, db: Session = Depends(get_db),
+                   current_user: Usuario = Depends(get_current_user)):
+    if payload.capital_base is not None:
+        current_user.capital_base = payload.capital_base
+    if payload.tolerancia_riesgo is not None:
+        current_user.tolerancia_riesgo = payload.tolerancia_riesgo
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+\end{lstlisting}
+
+\paragraph{Patrón clásico GET/PUT.} El GET devuelve el perfil entero. El PUT acepta campos \emph{opcionales} (\texttt{Optional[float]}) y solo modifica los que llegan rellenos. Esto permite actualizaciones parciales sin sobrescribir lo que no se quiere tocar.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/schemas/user.py} --- contratos Pydantic}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python]
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class UserProfileOut(BaseModel):
+    email: EmailStr
+    capital_base: float | None
+    tolerancia_riesgo: float | None
+    model_config = {"from_attributes": True}
+
+class UserProfileUpdate(BaseModel):
+    capital_base: float | None = None
+    tolerancia_riesgo: float | None = None
+\end{lstlisting}
+
+\paragraph{\texttt{EmailStr}.} Subclase de \texttt{str} de Pydantic que valida formato de email. Si el cliente envía algo que no parece email, FastAPI devuelve 422 con un mensaje explicativo automáticamente.
+
+\paragraph{\texttt{from\_attributes=True}.} Antes llamado \texttt{orm\_mode}. Permite construir el schema directamente desde un objeto SQLAlchemy (no solo desde un dict). Por eso \texttt{return current\_user} funciona aunque \texttt{current\_user} sea una instancia de \texttt{Usuario}.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/api/assets.py} --- info de activos}
+% -----------------------------------------------------------------------------
+
+Lo más relevante de este archivo es la función que detecta la \emph{clase de activo} y la frecuencia de pago de dividendos.
+
+\begin{lstlisting}[language=Python,caption={Detección de clase de activo}]
+_ASSET_CLASS_OVERRIDE: dict[str, str] = {
+    "BND": "Bonds", "AGG": "Bonds", "TLT": "Bonds", # ...
+    "VNQ": "Real Estate", "O": "Real Estate", # ...
+    "GLD": "Commodities", "SLV": "Commodities", # ...
+    "SGOV": "Cash", "USFR": "Cash",
+}
+
+_ASSET_CLASS_KEYWORDS = {
+    "Bonds": ["bond", "treasury", "fixed income", # ...],
+    "Real Estate": ["real estate", "reit", # ...],
+    "Commodities": ["gold", "silver", "commodity", # ...],
+    "Cash": ["money market", "treasury bill", "ultra short", "cash"],
+}
+
+
+def _detectar_clase_activo(quote_type, sector, industria, nombre, category, ticker):
+    if ticker in _ASSET_CLASS_OVERRIDE:
+        return _ASSET_CLASS_OVERRIDE[ticker]
+
+    if quote_type == "CRYPTOCURRENCY":
+        return "Alternatives"
+    if quote_type == "CURRENCY":
+        return "Cash"
+
+    haystack = " ".join(filter(None, [nombre, category, industria, sector])).lower()
+    for clase, keywords in _ASSET_CLASS_KEYWORDS.items():
+        if any(kw in haystack for kw in keywords):
+            return clase
+
+    if sector and "real estate" in sector.lower():
+        return "Real Estate"
+
+    if quote_type in ("EQUITY", "MUTUALFUND", "ETF", "INDEX"):
+        return "Equity"
+    return "Equity"
+\end{lstlisting}
+
+\paragraph{Jerarquía de detección.} 1) Override explícito por ticker (más fiable). 2) Tipo de quote (cripto, divisa). 3) Búsqueda de keywords en metadatos. 4) Fallback a Equity.
+
+\paragraph{Por qué tantas heurísticas.} yfinance no expone un campo limpio "asset class". Tenemos que reconstruirlo a partir de pistas indirectas. El override manual es la red de seguridad para los tickers más comunes.
+
+\paragraph{Detección de frecuencia de dividendos.}
+\begin{lstlisting}[language=Python]
+def _detectar_frecuencia_dividendos(dividends) -> str:
+    if dividends is None or len(dividends) < 2:
+        return "Ninguno" if (dividends is None or len(dividends) == 0) else "Irregular"
+    cutoff = dividends.index.max() - pd.Timedelta(days=1460)
+    recientes = dividends[dividends.index >= cutoff]
+    if len(recientes) < 2:
+        return "Irregular"
+    dias_entre_pagos = recientes.index.to_series().diff().dt.days.dropna().mean()
+    if dias_entre_pagos < 45:   return "Mensual"
+    if dias_entre_pagos < 120:  return "Trimestral"
+    if dias_entre_pagos < 240:  return "Semestral"
+    if dias_entre_pagos < 450:  return "Anual"
+    return "Irregular"
+\end{lstlisting}
+
+\paragraph{Inferencia desde datos reales.} En lugar de fiarme del campo \texttt{payoutFrequency} de yfinance (que a veces es incorrecto), miro el histórico real de dividendos de los últimos 4 años y calculo la diferencia media en días entre pagos. Las cuatro categorías canónicas tienen distancias muy distintas (mensual ~30, trimestral ~90, semestral ~180, anual ~365), así que clasificar es fácil.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/api/portfolio.py} --- el router más grande}
+% -----------------------------------------------------------------------------
+
+Aquí están los endpoints de optimización, Monte Carlo, fiscalidad y CRUD de carteras (con snapshots).
+
+\begin{lstlisting}[language=Python,caption={Endpoint \texttt{/portfolio/optimize}}]
+@router.post("/optimize")
+def optimize_portfolio(payload: OptimizeRequest):
+    if len(payload.tickers) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Se necesitan al menos 2 tickers para optimizar",
+        )
+    try:
+        opt = MarkowitzOptimizer(tickers=[t.upper() for t in payload.tickers])
+        result = opt.optimizar(
+            max_volatilidad=payload.max_volatilidad,
+            capital=payload.capital,
+            metodo=payload.metodo,
+        )
+    except DataSourceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return result
+\end{lstlisting}
+
+\paragraph{Validaciones en niveles.} 1) \texttt{len(tickers) < 2} es validación rápida sin tocar BD ni red. 2) \texttt{DataSourceError} significa que ni yfinance ni Alpha Vantage respondieron $\to$ 502 Bad Gateway. 3) \texttt{ValueError} es la opción más probable: el usuario pidió una restricción imposible $\to$ 400 con el mensaje legible que el optimizador genera.
+
+\paragraph{Mapping de excepciones a status HTTP.} Es el patrón estándar en FastAPI: las excepciones del dominio (negocio) se traducen a HTTPException con el status apropiado. El frontend puede actuar diferente según el status.
+
+\begin{lstlisting}[language=Python,caption={Guardar cartera con upsert de activos}]
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def guardar_cartera(payload, db, current_user):
+    cartera = Cartera(
+        usuario_id=current_user.id,
+        nombre_estrategia=payload.nombre_estrategia,
+        fecha_creacion=date.today(),
+    )
+    db.add(cartera)
+    db.flush()  # obtiene cartera.id sin cerrar la transacción
+
+    for ticker, peso in payload.pesos.items():
+        ticker_upper = ticker.upper()
+        activo = db.query(Activo).filter(Activo.isin_ticker == ticker_upper).first()
+        if not activo:
+            activo = Activo(isin_ticker=ticker_upper, nombre_fondo=ticker_upper)
+            db.add(activo)
+            db.flush()
+
+        db.add(ActivoCartera(
+            cartera_id=cartera.id,
+            activo_id=activo.id,
+            peso_asignado=peso,
+        ))
+    db.commit()
+    return {"id": cartera.id, "mensaje": "Cartera guardada correctamente"}
+\end{lstlisting}
+
+\paragraph{\texttt{db.flush()} sin commit.} \texttt{flush} envía las queries pendientes a BD pero no cierra la transacción. Sirve para obtener el id autogenerado de la nueva cartera (necesario para insertar después en \texttt{ActivoCartera}). Si después algo falla, todo se rollbackea.
+
+\paragraph{Upsert manual de activos.} Para cada ticker, primero busco si ya existe en la tabla \texttt{Activo}. Si no, lo creo. Esto evita duplicados (el ticker es UNIQUE).
+
+\paragraph{Inserción de relaciones.} Por cada ticker $\to$ activo $\to$ una fila en \texttt{ActivoCartera} con el peso. Al final un único \texttt{commit} hace todo atómico.
+
+\begin{lstlisting}[language=Python,caption={Update con snapshot automático}]
+@router.put("/{cartera_id}")
+def actualizar_cartera(cartera_id, payload, db, current_user):
+    cartera = db.query(Cartera).filter(
+        Cartera.id == cartera_id,
+        Cartera.usuario_id == current_user.id,
+    ).first()
+    if not cartera:
+        raise HTTPException(status_code=404, detail="Cartera no encontrada")
+
+    # Snapshot del estado anterior antes de modificar
+    pesos_actuales = {ac.activo.isin_ticker: ac.peso_asignado for ac in cartera.activos}
+    if pesos_actuales:
+        db.add(CarteraSnapshot(
+            cartera_id=cartera.id,
+            fecha=datetime.now(timezone.utc),
+            nombre_estrategia=cartera.nombre_estrategia,
+            pesos=pesos_actuales,
+            motivo="edicion",
+        ))
+
+    cartera.nombre_estrategia = payload.nombre_estrategia
+    db.query(ActivoCartera).filter(ActivoCartera.cartera_id == cartera_id).delete()
+    for ticker, peso in payload.pesos.items():
+        # ... upsert + insert (idéntico a guardar_cartera)
+    db.commit()
+\end{lstlisting}
+
+\paragraph{Snapshot \emph{antes} de modificar.} La pieza clave: serializo los pesos actuales como JSON y los inserto en \texttt{cartera\_snapshot} \emph{antes} de tocar la cartera. Después puedo borrar las relaciones existentes y crear las nuevas con tranquilidad. Esto produce un historial completo de versiones.
+
+\paragraph{Filtrado por usuario.} La query incluye \texttt{Cartera.usuario\_id == current\_user.id}: si un usuario autenticado intenta editar la cartera de otro, recibe 404. Es la barrera de autorización (el JWT solo verifica autenticación, no autorización a nivel de recurso).
+
+\begin{lstlisting}[language=Python,caption={Endpoint Monte Carlo}]
+@router.post("/monte-carlo")
+def proyeccion_monte_carlo(payload: MonteCarloRequest):
+    if len(payload.tickers) < 1:
+        raise HTTPException(status_code=422, detail="Se necesita al menos 1 ticker.")
+    if abs(sum(payload.pesos.values()) - 1.0) > 1e-2:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Los pesos deben sumar 1.0 (suman {sum(payload.pesos.values()):.4f}).",
+        )
+    try:
+        sim = MonteCarloSimulator(
+            tickers=[t.upper() for t in payload.tickers],
+            pesos={t.upper(): w for t, w in payload.pesos.items()},
+        )
+        return sim.simular(
+            años=payload.años,
+            n_simulaciones=payload.n_simulaciones,
+            capital_inicial=payload.capital_inicial,
+        )
+    except DataSourceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+\end{lstlisting}
+
+\paragraph{Validación de pesos en API.} Antes de instanciar el simulador, verificamos que los pesos sumen 1.0 con tolerancia 1\%. Es una salvaguarda contra clientes mal implementados.
+
+\paragraph{Endpoint fiscal análogo.} \texttt{/portfolio/fiscalidad} sigue el mismo patrón: valida, llama a \texttt{comparar()} de \texttt{fiscalidad.py}, mapea excepciones.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{backend/app/api/backtesting.py}}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=Python]
+class BacktestRequest(BaseModel):
+    tickers: list[str]
+    pesos: dict[str, float]
+    periodo: str = "5y"
+    fecha_inicio: str | None = None
+    fecha_fin: str | None = None
+    rebalanceo: str = "ninguno"
+    comision_pct: float = 0.0
+
+    @field_validator("pesos")
+    @classmethod
+    def pesos_validos(cls, v: dict[str, float]) -> dict[str, float]:
+        if any(w < 0 for w in v.values()):
+            raise ValueError("Los pesos no pueden ser negativos.")
+        total = sum(v.values())
+        if abs(total - 1.0) > 1e-4:
+            raise ValueError(f"Los pesos deben sumar 1.0, suman {total:.4f}")
+        return v
+
+    @field_validator("tickers")
+    @classmethod
+    def al_menos_un_ticker(cls, v):
+        if not v:
+            raise ValueError("Se necesita al menos un ticker")
+        return [t.upper() for t in v]
+\end{lstlisting}
+
+\paragraph{Validators de Pydantic.} Decoradores que aplican lógica adicional al deserializar. Aquí: 1) los pesos no pueden ser negativos (no permitimos cortos), 2) suman 1.0 con tolerancia $10^{-4}$, 3) al menos un ticker. Si fallan, FastAPI devuelve 422 con el mensaje del \texttt{ValueError}.
+
+\paragraph{Normalización a mayúsculas.} El validator de tickers también normaliza a mayúsculas (\texttt{aapl} $\to$ \texttt{AAPL}). Así el resto del código no tiene que preocuparse por eso.
+
+% =============================================================================
+\part{Frontend (React 19 · TypeScript · Vite)}
+% =============================================================================
+
+% =============================================================================
+\chapter{Estructura general y bootstrap}
+% =============================================================================
+
+\section{\texttt{frontend/src/App.tsx} --- rutas de la aplicación}
+
+\begin{lstlisting}[language=TypeScript]
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import OptimizerPage from './pages/OptimizerPage';
+import XRayPage from './pages/XRayPage';
+import BacktestPage from './pages/BacktestPage';
+import ComparePage from './pages/ComparePage';
+import PlannerPage from './pages/PlannerPage';
+import ProjectionPage from './pages/ProjectionPage';
+import FiscalidadPage from './pages/FiscalidadPage';
+import ProfilePage from './pages/ProfilePage';
+
+const router = createBrowserRouter([
+  { path: '/', element: <LoginPage /> },
+  {
+    path: '/dashboard',
+    element: <DashboardPage />,
+    children: [
+      { index: true, element: <Navigate to="planner" replace /> },
+      { path: 'planner',   element: <PlannerPage /> },
+      { path: 'optimizer', element: <OptimizerPage /> },
+      { path: 'xray',      element: <XRayPage /> },
+      { path: 'backtest',  element: <BacktestPage /> },
+      { path: 'compare',   element: <ComparePage /> },
+      { path: 'projection', element: <ProjectionPage /> },
+      { path: 'fiscalidad', element: <FiscalidadPage /> },
+      { path: 'profile',   element: <ProfilePage /> },
+    ],
+  },
+  { path: '*', element: <Navigate to="/" replace /> },
+]);
+
+export default function App() {
+  return <RouterProvider router={router} />;
+}
+\end{lstlisting}
+
+\paragraph{Estructura de rutas anidadas.} La ruta \texttt{/} muestra el login. Bajo \texttt{/dashboard} hay un layout (\texttt{DashboardPage}) que tiene un sidebar y un \texttt{Outlet} donde se renderizan las páginas hijas. Cada hija (planner, optimizer, etc.) es una ruta dentro del dashboard.
+
+\paragraph{Index route + redirect.} \texttt{\{ index: true, element: <Navigate to="planner" replace /> \}} hace que entrar a \texttt{/dashboard} redirija a \texttt{/dashboard/planner} automáticamente. El planificador es la página por defecto porque es el primer paso lógico para un nuevo usuario.
+
+\paragraph{Catch-all 404.} \texttt{path: '*'} captura cualquier URL no reconocida y redirige al login (que a su vez, si ya tienes token, redirige al dashboard).
+
+\section{\texttt{frontend/src/main.tsx} --- punto de entrada}
+
+Es un archivo trivial: importa React, monta el componente \texttt{App} en el div con id \texttt{root} y carga el CSS global. No requiere walkthrough.
+
+\section{\texttt{frontend/src/styles.ts} --- constantes de estilo}
+
+Centraliza los estilos repetidos (paletas de colores, estilos de \texttt{CARD}, \texttt{INPUT}, \texttt{LABEL}). Son objetos JS que se aplican como prop \texttt{style} en los componentes. Ventaja: tipado, sin duplicación. Desventaja: no tienen pseudo-selectores como \texttt{:hover}, esos están en el CSS global.
+
+\section{\texttt{frontend/src/index.css} --- variables CSS y temas}
+
+Define las variables CSS de los seis temas. La variable \texttt{--accent}, \texttt{--bg}, \texttt{--text}, etc.\ tiene un valor distinto según el tema activo, controlado mediante el atributo \texttt{data-theme} en el \texttt{<html>}.
+
+\section{\texttt{frontend/src/hooks/useTheme.ts}}
+
+\begin{lstlisting}[language=TypeScript]
+export type Theme = 'slate' | 'electric' | 'violet' | 'dark' | 'light' | 'rose' | 'emerald' | 'amber';
+
+function applyTheme(theme: Theme) {
+  if (theme === 'slate') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+}
+
+export function useTheme() {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const saved = (localStorage.getItem('theme') as Theme) ?? 'slate';
+    applyTheme(saved);
+    return saved;
+  });
+
+  function setTheme(t: Theme) {
+    applyTheme(t);
+    localStorage.setItem('theme', t);
+    setThemeState(t);
+  }
+
+  return { theme, setTheme };
+}
+\end{lstlisting}
+
+\paragraph{Cómo funciona.} Cambiar de tema consiste en modificar el atributo \texttt{data-theme} en el \texttt{<html>}. El CSS global tiene reglas como \texttt{[data-theme="rose"] \{ --accent: \#f43f5e; ... \}} que sobrescriben las variables del tema por defecto. Es un patrón ligero que no requiere recompilar CSS.
+
+\paragraph{Persistencia.} El tema elegido se guarda en \texttt{localStorage} y se lee en la inicialización del estado (función pasada a \texttt{useState}). Esa función solo se ejecuta una vez, en el primer render.
+
+% =============================================================================
+\chapter{Servicios: cliente HTTP y lógica pura}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/services/api.ts} --- cliente Axios y tipos}
+% -----------------------------------------------------------------------------
+
+Este archivo es el contrato entre frontend y backend: define los tipos compartidos (interfaces TypeScript que reflejan los DTOs Pydantic del backend) y las funciones que hacen las peticiones HTTP.
+
+\subsection{Cliente Axios e interceptores}
+
+\begin{lstlisting}[language=TypeScript,caption={Configuración del cliente}]
+import axios from 'axios';
+
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8000';
+const api = axios.create({ baseURL: API_URL });
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url: string = error.config?.url ?? '';
+    const isAuthEndpoint = url.includes('/auth/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
+      localStorage.removeItem('token');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  },
+);
+\end{lstlisting}
+
+\paragraph{\texttt{baseURL} configurable.} Se lee de la variable de entorno Vite \texttt{VITE\_API\_URL}, con fallback al backend local. Esto permite hacer build de producción apuntando a otro dominio sin recompilar.
+
+\paragraph{Interceptor de petición.} Antes de enviar cualquier request, lee el token JWT de \texttt{localStorage} y lo añade al header \texttt{Authorization}. Así, el resto del código no necesita preocuparse por adjuntarlo manualmente.
+
+\paragraph{Interceptor de respuesta.} Si recibimos un 401 (no autenticado) en cualquier endpoint que no sea de auth, asumimos que el token expiró. Lo borramos y redirigimos al login. Esto evita que el usuario se quede en una página rota sin saber por qué.
+
+\subsection{Funciones de auth y perfil}
+
+\begin{lstlisting}[language=TypeScript]
+export function login(email: string, password: string) {
+  const body = new URLSearchParams({ username: email, password });
+  return api.post<{ access_token: string }>('/auth/login', body);
+}
+
+export function register(email: string, password: string) {
+  return api.post<{ access_token: string }>('/auth/register', { email, password });
+}
+
+export function getProfile() {
+  return api.get<UserProfile>('/auth/profile');
+}
+
+export function updateProfile(data: { capital_base?: number | null; tolerancia_riesgo?: number | null }) {
+  return api.put<UserProfile>('/auth/profile', data);
+}
+\end{lstlisting}
+
+\paragraph{\texttt{URLSearchParams} en login.} El endpoint OAuth2 de FastAPI espera \texttt{form-encoded} (no JSON) con campos \texttt{username} y \texttt{password}. \texttt{URLSearchParams} construye ese cuerpo correctamente.
+
+\paragraph{Tipado del return.} \texttt{api.post<T>(...)} declara el tipo de respuesta. Esto da autocompletado en quien llame a la función: \texttt{response.data.access\_token} sabe que es \texttt{string}.
+
+\subsection{Optimización}
+
+\begin{lstlisting}[language=TypeScript]
+export type OptimizationMethod = 'markowitz' | 'min_variance' | 'risk_parity' | 'equal_weight' | 'min_cvar';
+
+export function optimizePortfolio(
+  tickers: string[],
+  capital: number,
+  maxVolatilidad: number,
+  metodo: OptimizationMethod = 'markowitz',
+) {
+  return api.post<OptimizeResult>('/portfolio/optimize', {
+    tickers, capital, max_volatilidad: maxVolatilidad, metodo,
+  });
+}
+\end{lstlisting}
+
+\paragraph{Tipo unión literal.} \texttt{OptimizationMethod} tiene exactamente cinco valores posibles. Si en el frontend se pasa cualquier otro string, TypeScript lo rechaza en tiempo de compilación.
+
+\paragraph{Default value.} \texttt{metodo = 'markowitz'} mantiene compatibilidad con código antiguo que llamaba sin el parámetro.
+
+\subsection{Tipos de respuestas (interfaces clave)}
+
+\begin{lstlisting}[language=TypeScript]
+export interface FronteraPunto {
+  retorno: number;
+  volatilidad: number;
+  sharpe: number;
+}
+
+export interface ParetoPoint {
+  theta: number;
+  sharpe: number;
+  sortino: number;
+  volatilidad: number;
+  retorno: number;
+}
+
+export interface OptimizeResult {
+  metodo?: OptimizationMethod;
+  pesos: Record<string, number>;
+  retorno_esperado: number;
+  volatilidad: number;
+  sharpe_ratio: number;
+  diversification_ratio?: number;
+  concentracion_hhi?: number;
+  activos_efectivos?: number;
+  cvar_95_diario?: number;
+  cvar_95_anual?: number;
+  activos_info: Record<string, ActivoInfo>;
+  frontera: FronteraPunto[];
+  pareto: ParetoPoint[];
+}
+
+export interface MonteCarloResult {
+  parametros: { /* ... */ };
+  trayectoria: MonteCarloPoint[];
+  valor_final: { media: number; mediana: number; /* ... */ };
+  cagr: { p5: number; p50: number; p95: number; media: number };
+  probabilidad_perdida: number;
+  probabilidad_doblar: number;
+  probabilidad_triplicar: number;
+  histograma: { valor_min: number; valor_max: number; frecuencia: number }[];
+}
+
+export interface FiscalidadResult {
+  parametros: { /* ... */ };
+  bruto_teorico: number;
+  etf_distrib: VehiculoFiscalResult;
+  fondo_acum:  VehiculoFiscalResult;
+  diferimiento: { ahorro_eur: number; ahorro_pct: number; /* ... */ };
+}
+\end{lstlisting}
+
+\paragraph{Por qué importan estos tipos.} Cada componente que recibe estos datos puede confiar en TypeScript para autocompletar y validar accesos. Si el backend cambia el shape de una respuesta, el frontend deja de compilar hasta actualizar la interfaz.
+
+\paragraph{Campos opcionales (\texttt{?}).} \texttt{diversification\_ratio?: number} significa que puede no estar. Esto refleja que algunas optimizaciones antiguas (antes de añadir esa métrica) no la traían. Forzar su uso con \texttt{result.diversification\_ratio!.toFixed(2)} requiere asegurarse de que está presente.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/services/planner.ts} --- regla del 110}
+% -----------------------------------------------------------------------------
+
+Este archivo es \emph{lógica pura}: no importa nada de React, no toca el DOM, solo recibe inputs y devuelve outputs. Eso lo hace fácilmente testable y reutilizable.
+
+\subsection{Tipos y constantes}
+
+\begin{lstlisting}[language=TypeScript]
+export type Horizonte = 'corto' | 'medio' | 'largo' | 'muyLargo';
+export type PerfilRiesgo = 'conservador' | 'moderado' | 'agresivo';
+
+export interface PlannerInputs {
+  liquidezDisponible: number;
+  gastosMensuales:    number;
+  mesesEmergencia:    number;
+  edad:               number;
+  horizonte:          Horizonte;
+  perfil:             PerfilRiesgo;
+}
+
+const HORIZONTE_CAP_EQUITY: Record<Horizonte, number> = {
+  corto: 30, medio: 60, largo: 100, muyLargo: 100,
+};
+const HORIZONTE_BONUS_EQUITY: Record<Horizonte, number> = {
+  corto: -10, medio: 0, largo: 0, muyLargo: 5,
+};
+const PERFIL_AJUSTE_EQUITY: Record<PerfilRiesgo, number> = {
+  conservador: -10, moderado: 0, agresivo: 10,
+};
+\end{lstlisting}
+
+\paragraph{Capacidad por horizonte.} A corto plazo (menos de 2 años), el equity se topa al 30\,\% por mucho que la fórmula del 110 lo sugiera más alto. Lógica: dinero que necesitas pronto no debería estar muy expuesto a renta variable.
+
+\paragraph{Bonus por horizonte.} A corto plazo, $-10$\,pp de equity (más conservador). A muy largo plazo, $+5$\,pp (más agresivo). El medio y largo son neutros.
+
+\paragraph{Ajustes por perfil.} $\pm 10$\,pp según conservador/agresivo. Es la palanca subjetiva que el usuario controla.
+
+\subsection{Cálculo del \% equity}
+
+\begin{lstlisting}[language=TypeScript]
+export function calcularPctEquity(edad, perfil, horizonte): number {
+  const base       = Math.max(0, Math.min(100, 110 - edad));
+  const conPerfil  = base + PERFIL_AJUSTE_EQUITY[perfil];
+  const conHoriz   = conPerfil + HORIZONTE_BONUS_EQUITY[horizonte];
+  const cap        = HORIZONTE_CAP_EQUITY[horizonte];
+  return Math.max(0, Math.min(cap, conHoriz));
+}
+\end{lstlisting}
+
+\paragraph{Pipeline.} Aplico cuatro pasos en orden: 1) regla del 110 (clamp 0--100); 2) ajuste por perfil; 3) bonus por horizonte; 4) cap por horizonte. El último \texttt{Math.max/min} acota el resultado al rango $[0, \mathrm{cap}]$.
+
+\paragraph{Por qué este orden.} Si aplicara el cap antes del ajuste por perfil, un agresivo a corto plazo siempre saldría con 30\,\% (el cap) en lugar de poder bajar a 20\,\%. El cap es la \emph{última palabra}, después de todos los ajustes.
+
+\subsection{Construcción de la asset allocation completa}
+
+\begin{lstlisting}[language=TypeScript]
+export function construirAssetAllocation(pctEquity, perfil): AssetAllocation {
+  const restoMacro = 100 - pctEquity;
+  const pctRealEstate = perfil === 'agresivo' ? 5 : (perfil === 'moderado' ? 4 : 2);
+  const pctCommodities = perfil === 'agresivo' ? 5 : (perfil === 'moderado' ? 3 : 2);
+  const altsTotal = pctRealEstate + pctCommodities;
+  const altsAjust = Math.min(altsTotal, restoMacro * 0.25);
+  const pctRE_real = pctRealEstate * (altsAjust / Math.max(altsTotal, 0.01));
+  const pctC_real  = pctCommodities * (altsAjust / Math.max(altsTotal, 0.01));
+  const pctBonds   = restoMacro - pctRE_real - pctC_real;
+  return {
+    cash: 0,
+    bonds: round(pctBonds),
+    equity: round(pctEquity),
+    realEstate: round(pctRE_real),
+    commodities: round(pctC_real),
+  };
+}
+\end{lstlisting}
+
+\paragraph{Distribuir el resto.} Si el equity es 70\,\%, hay 30\,\% que repartir entre bonos, real estate y commodities. Los porcentajes objetivo dependen del perfil.
+
+\paragraph{Compresión de alternativos.} Si el resto es muy pequeño (por ejemplo equity 95\,\% deja solo 5\,\%), respetamos que los alternativos no se coman más del 25\,\% de ese resto. \texttt{altsAjust = Math.min(altsTotal, restoMacro * 0.25)} fuerza esa restricción.
+
+\paragraph{Cálculo final.} Bonds absorbe lo que sobra. Esto garantiza que los porcentajes sumen exactamente 100.
+
+\subsection{Notas contextuales}
+
+\begin{lstlisting}[language=TypeScript]
+const notas: string[] = [];
+if (capitalInvertible <= 0) {
+  notas.push('Tu liquidez actual no cubre el fondo de emergencia...');
+}
+if (pctInvertible < 30 && capitalInvertible > 0) {
+  notas.push('Más del 70 % de tu liquidez se queda como emergencia...');
+}
+if (inputs.horizonte === 'corto' && aa.equity > 30) {
+  notas.push('Horizonte corto y mucho equity: vigila la volatilidad...');
+}
+if (inputs.edad >= 60 && aa.equity > 60) {
+  notas.push('A partir de los 60 conviene reducir progresivamente equity...');
+}
+if (inputs.perfil === 'conservador' && aa.equity > 40) {
+  notas.push('Perfil conservador con equity elevado...');
+}
+\end{lstlisting}
+
+\paragraph{Cinco reglas declarativas.} Cada \texttt{if} dispara un mensaje contextual cuando la situación lo justifica. El frontend simplemente las renderiza como avisos amarillos.
+
+\paragraph{Por qué aquí y no en el componente.} Tener las reglas en el módulo de lógica pura permite testearlas sin montar React. Si añadiera una sexta, sería una línea más.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/portfolioTemplates.ts} --- 13 plantillas}
+% -----------------------------------------------------------------------------
+
+\begin{lstlisting}[language=TypeScript,caption={Estructura de cada plantilla}]
+export type PerfilTemplate = 'conservador' | 'moderado' | 'agresivo';
+
+export interface PortfolioTemplate {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  perfil: PerfilTemplate;
+  tickers: string[];
+  volatilidadSugerida: number;
+}
+
+export const TEMPLATES: PortfolioTemplate[] = [
+  {
+    id: 'permanent-portfolio',
+    nombre: 'Permanent Portfolio (Browne)',
+    descripcion: '25/25/25/25: equity + bonos LP + bonos CP + oro...',
+    perfil: 'conservador',
+    tickers: ['VTI', 'TLT', 'SHY', 'GLD'],
+    volatilidadSugerida: 12,
+  },
+  // ... 12 más
+];
+\end{lstlisting}
+
+\paragraph{Diseño de las plantillas.} Cada una tiene un \texttt{id} único (slug), un nombre humano, una descripción corta, su perfil objetivo, los tickers que la componen y una volatilidad sugerida (que se aplica al slider del optimizador cuando el usuario la selecciona).
+
+\paragraph{Función \texttt{detectarPerfil}.} Mapea la tolerancia al riesgo del usuario (un número 0--100) al \texttt{PerfilTemplate}. Sirve para que el optimizador filtre las plantillas según el perfil del usuario logueado.
+
+\begin{lstlisting}[language=TypeScript]
+export function detectarPerfil(tolerancia: number | null | undefined): PerfilTemplate | null {
+  if (tolerancia == null) return null;
+  if (tolerancia <= 17) return 'conservador';
+  if (tolerancia <= 30) return 'moderado';
+  return 'agresivo';
+}
+\end{lstlisting}
+
+% =============================================================================
+\chapter{Componentes reutilizables}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/components/TickerSearch.tsx}}
+% -----------------------------------------------------------------------------
+
+Un componente clave que se usa en Optimizer y Backtest. Permite buscar tickers en Yahoo Finance con autocompletado y mostrar los seleccionados como chips.
+
+\begin{lstlisting}[language=TypeScript,caption={Estado y debounce}]
+const [query, setQuery] = useState('');
+const [results, setResults] = useState<SearchResult[]>([]);
+const [loadingSearch, setLoadingSearch] = useState(false);
+const [open, setOpen] = useState(false);
+const [highlightIdx, setHighlightIdx] = useState(-1);
+const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+useEffect(() => {
+  if (query.trim().length < 1) {
+    setResults([]);
+    setOpen(false);
+    return;
+  }
+  if (debounceRef.current) clearTimeout(debounceRef.current);
+  debounceRef.current = setTimeout(async () => {
+    setLoadingSearch(true);
+    try {
+      const { data } = await searchAssets(query.trim());
+      setResults(data.filter((r) => !selected.includes(r.ticker)));
+      setOpen(true);
+      setHighlightIdx(-1);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoadingSearch(false);
+    }
+  }, 280);
+}, [query, selected]);
+\end{lstlisting}
+
+\paragraph{Debounce manual.} Cada vez que el usuario teclea, en lugar de lanzar una búsqueda inmediata, esperamos 280\,ms antes de pegarle al backend. Si en ese tiempo aparece otra tecla, se reinicia el timeout. Esto evita spam: si tecleas "AAPL" rápido, solo se hace una búsqueda al final.
+
+\paragraph{\texttt{useRef} para el timeout.} \texttt{useRef} mantiene el timeout entre renders sin causarlos. Si guardara el timeout en \texttt{useState}, cada cambio de valor causaría un re-render innecesario.
+
+\paragraph{Filtrar ya seleccionados.} \texttt{data.filter((r) => !selected.includes(r.ticker))} quita de los resultados los tickers que ya están elegidos. Así no aparecen como sugerencia repetida.
+
+\begin{lstlisting}[language=TypeScript,caption={Manejo de teclado}]
+function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (!open || results.length === 0) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setHighlightIdx((i) => Math.min(i + 1, results.length - 1));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    setHighlightIdx((i) => Math.max(i - 1, 0));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (highlightIdx >= 0 && results[highlightIdx]) {
+      addTicker(results[highlightIdx].ticker);
+    } else if (results[0]) {
+      addTicker(results[0].ticker);
+    }
+  } else if (e.key === 'Escape') {
+    setOpen(false);
+  }
+}
+\end{lstlisting}
+
+\paragraph{UX de teclado.} Las flechas mueven el highlight, Enter selecciona el resultado resaltado (o el primero si no hay highlight), Escape cierra. Es el comportamiento estándar de un autocompletado.
+
+\paragraph{\texttt{e.preventDefault()}.} Las flechas en un input por defecto mueven el cursor. Sin \texttt{preventDefault}, el highlight no cambiaría.
+
+\subsection{Componente \texttt{TickerLogo}}
+
+\begin{lstlisting}[language=TypeScript]
+function TickerLogo({ ticker, size = 32 }: { ticker: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const color = COLORS[ticker.charCodeAt(0) % COLORS.length];
+
+  if (failed) {
+    return <div /* ... fallback con iniciales ... */ >{ticker.slice(0, 2)}</div>;
+  }
+  return (
+    <img
+      src={`${LOGO_BASE}${ticker}?format=jpg`}
+      alt={ticker}
+      width={size} height={size}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+\end{lstlisting}
+
+\paragraph{Logo desde Parqet.} Usamos un servicio gratuito que sirve logos por ticker. Si la imagen no carga (\texttt{onError}), caemos a un placeholder con las dos primeras letras y un color hash del primer carácter.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/components/SliderInput.tsx}}
+% -----------------------------------------------------------------------------
+
+Un slider con un input numérico editable a la derecha. Soporta escala lineal o logarítmica (importante para capital, donde el rango va de 500\,€ a 500\,000\,€).
+
+\begin{lstlisting}[language=TypeScript,caption={Conversiones lineal vs logarítmico}]
+function toPos(v: number, min: number, max: number, scale: 'linear' | 'log'): number {
+  const ratio = scale === 'log'
+    ? (Math.log(clamp(v, min, max)) - Math.log(min)) / (Math.log(max) - Math.log(min))
+    : (clamp(v, min, max) - min) / (max - min);
+  return clamp(Math.round(ratio * IMAX), 0, IMAX);
+}
+
+function fromPos(p: number, min: number, max: number, scale: 'linear' | 'log'): number {
+  const ratio = p / IMAX;
+  return scale === 'log'
+    ? Math.exp(Math.log(min) + ratio * (Math.log(max) - Math.log(min)))
+    : min + ratio * (max - min);
+}
+\end{lstlisting}
+
+\paragraph{Por qué dos escalas.} En escala lineal, mover el slider de 500 a 1000 ocupa el mismo espacio que de 250\,000 a 250\,500. Para capital, donde el rango cubre tres órdenes de magnitud, esto es horrible: la mitad del slider sería para los últimos miles de euros. La escala logarítmica reparte equitativamente: el slider crece como $\times 10$ a cada paso visual. La fórmula es $v = \min \cdot (\max/\min)^{p/I}$, equivalente a la línea con \texttt{Math.exp + Math.log}.
+
+\paragraph{Patrón \texttt{lastCommitted}.} Para evitar el "snap-back" cuando el slider se arrastra, mantenemos una ref con el último valor que el componente confirmó. Si el prop \texttt{value} cambia desde fuera con un valor que no coincide con \texttt{lastCommitted}, sincronizamos el slider; si coincide, lo dejamos donde está. Esto hace el drag fluido.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/components/EditPortfolioModal.tsx}}
+% -----------------------------------------------------------------------------
+
+Modal que aparece al pulsar "Editar" sobre una cartera del X-Ray. Permite ajustar los pesos manualmente y guardarlos.
+
+\paragraph{Estado clave.} Mantiene un mapa \texttt{pesos: Record<string, string>} (string para tolerar comas decimales y campos vacíos durante la edición). Al guardar, parsea cada valor y normaliza para que sumen exactamente 1.
+
+\paragraph{Botón Normalizar.} Si la suma actual no es 1, el botón "Normalizar" recalcula \texttt{w\_i / sum} para todos. Pequeña UX que evita que el usuario tenga que hacer la cuenta a mano.
+
+\paragraph{Validaciones antes de guardar.} 1) No queda ningún ticker. 2) Suma muy lejos de 1. 3) Algún peso negativo. Cada caso muestra un error inline.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/components/PortfolioHistoryModal.tsx}}
+% -----------------------------------------------------------------------------
+
+Modal del historial de versiones (snapshots) de una cartera. Lo añadimos junto con la feature de snapshots.
+
+\subsection{Carga de datos y construcción del timeline}
+
+\begin{lstlisting}[language=TypeScript]
+const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
+useEffect(() => {
+  getPortfolioSnapshots(portfolio.id)
+    .then(({ data }) => setSnapshots(data))
+    .catch(() => setError('No se pudo cargar el historial.'))
+    .finally(() => setLoading(false));
+}, [portfolio.id]);
+
+const pesosActuales = useMemo(
+  () => Object.fromEntries(portfolio.activos.map((a) => [a.ticker, a.peso_asignado])),
+  [portfolio],
+);
+
+const timeline = useMemo(() => {
+  const versiones = [
+    { etiqueta: 'Versión actual', fecha: null, pesos: pesosActuales, motivo: 'actual' },
+    ...snapshots.map((s) => ({ /* ... */ })),
+  ];
+  return versiones.map((v, i) => {
+    const previa = versiones[i + 1];
+    const cambios = previa ? diff(previa.pesos, v.pesos) : null;
+    return { ...v, cambios };
+  });
+}, [pesosActuales, snapshots]);
+\end{lstlisting}
+
+\paragraph{Construcción.} El array \texttt{versiones} pone en primer lugar el estado actual y después los snapshots ordenados de más reciente a más antiguo. Para cada versión, calculo el \emph{diff} con la siguiente del array (la versión más antigua).
+
+\paragraph{\texttt{diff()}.} Función helper que recibe dos diccionarios de pesos y devuelve qué tickers se añadieron, eliminaron y modificaron (con el delta en pp). Se usa para mostrar las flechas y las etiquetas verde/rojo en el timeline.
+
+\paragraph{\texttt{useMemo}.} Memoiza el cálculo del timeline. Solo se recalcula si cambian \texttt{pesosActuales} o \texttt{snapshots}, no en cada render.
+
+\subsection{Render del timeline vertical}
+
+\paragraph{Línea vertical absoluta.} Un \texttt{div} con \texttt{position: absolute, left: 11px, top: 8px, bottom: 8px, width: 2px} dibuja la barra. Encima van los puntos circulares (\texttt{z-index: 1}) de cada versión.
+
+\paragraph{Mini-barras de pesos.} Para cada versión, las barras horizontales muestran cada ticker con su peso. La anchura de la barra es \texttt{w·100\%}, el color del COLORS[idx]. Esto permite comparar visualmente la composición sin tener que leer números.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{frontend/src/components/ThemeSelector.tsx}}
+% -----------------------------------------------------------------------------
+
+Pequeño popover que muestra los 8 temas disponibles. Usa el hook \texttt{useTheme}. Se renderiza en el sidebar del Dashboard.
+
+% =============================================================================
+\chapter{Páginas principales}
+% =============================================================================
+
+% -----------------------------------------------------------------------------
+\section{\texttt{LoginPage.tsx} --- login y registro}
+% -----------------------------------------------------------------------------
+
+Pantalla con tabs entre Login y Registro. Llama a \texttt{login()} o \texttt{register()} de \texttt{api.ts}, guarda el token en \texttt{localStorage} y navega a \texttt{/dashboard}. Sin lógica más allá de manejar errores 401/400 y mostrarlos.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{DashboardPage.tsx} --- layout con sidebar}
+% -----------------------------------------------------------------------------
+
+Es el contenedor para todas las páginas autenticadas.
+
+\begin{lstlisting}[language=TypeScript,caption={Estructura del Dashboard}]
+const NAV_ITEMS = [
+  { to: 'planner',    label: 'Planificador', icon: '▦' },
+  { to: 'optimizer',  label: 'Optimizador',  icon: '◎' },
+  { to: 'xray',       label: 'X-Ray',        icon: '◈' },
+  { to: 'backtest',   label: 'Backtesting',  icon: '◉' },
+  { to: 'projection', label: 'Proyección',   icon: '◔' },
+  { to: 'fiscalidad', label: 'Fiscalidad',   icon: '€' },
+  { to: 'compare',    label: 'Comparador',   icon: '▣' },
+];
+
+export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) { navigate('/', { replace: true }); return; }
+    getProfile().then(({ data }) => setEmail(data.email)).catch(() => {});
+  }, [navigate]);
+  // ... render con sidebar + Outlet
+}
+\end{lstlisting}
+
+\paragraph{Auth gate.} Al montar, si no hay token, redirige al login. Si hay token, intenta cargar el perfil para mostrar el email en el sidebar. Si falla (token expirado), el interceptor de \texttt{api.ts} ya redirige al login automáticamente.
+
+\paragraph{\texttt{NavLink} y \texttt{Outlet}.} \texttt{NavLink} es como \texttt{Link} pero con estado activo automático según la URL. \texttt{Outlet} es donde se renderiza la página hija. La estructura final es: sidebar a la izquierda + área de contenido a la derecha donde \texttt{Outlet} renderiza la página actual.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{PlannerPage.tsx}}
+% -----------------------------------------------------------------------------
+
+\paragraph{Estado del formulario.} Liquidez, gastos, meses de emergencia, edad, horizonte, perfil. Todos en \texttt{useState}. Al cargar se hace \texttt{getProfile()} y se prellenan los valores guardados.
+
+\paragraph{Cálculo en tiempo real.} \texttt{const plan = useMemo(() => calcularPlan(inputs), [inputs])}. Cada cambio en cualquier input recalcula el plan al instante. Como \texttt{calcularPlan} es pura y rápida, no hay coste perceptible.
+
+\paragraph{Donut chart.} Recharts \texttt{PieChart} con cinco segmentos coloreados. El centro del donut muestra el total. Es la visualización más impactante del Planner.
+
+\paragraph{Acciones finales.} Dos botones: "Guardar como mi perfil" (llama a \texttt{updateProfile}) y "Aplicar al Optimizador" (guarda + persiste recomendación en \texttt{localStorage} con TTL 10 min + navega).
+
+\paragraph{Conexión Planner $\to$ Optimizer.} El truco está en \texttt{localStorage.setItem('plannerRecommendation', JSON.stringify(\{...\}))}. La página del Optimizer lee esa key al montar, la usa y la borra. Si no se aplica en 10 minutos, el OptimizerPage la ignora.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{OptimizerPage.tsx} --- la página más rica}
+% -----------------------------------------------------------------------------
+
+Es la página más extensa del proyecto. Combina:
+\begin{enumerate}
+  \item Selector de método (5 cards: Markowitz, Min Variance, Risk Parity, Min CVaR, Equal Weight).
+  \item TickerSearch para añadir activos.
+  \item SliderInput para capital y volatilidad máxima.
+  \item Plantillas filtradas por perfil del usuario.
+  \item Banner de recomendación del Planner (si llega).
+  \item Resultados: badge del método, métricas, donut de pesos, tabla de asignación, frontera eficiente, frontera de Pareto, métricas de calidad (DR, HHI, CVaR).
+  \item Formulario para guardar la cartera.
+\end{enumerate}
+
+\subsection{Lectura de la recomendación del Planner}
+
+\begin{lstlisting}[language=TypeScript]
+useEffect(() => {
+  getProfile().then(({ data }) => { /* ... prellena capital, maxVol, perfil ... */ });
+
+  const recRaw = localStorage.getItem('plannerRecommendation');
+  if (recRaw) {
+    try {
+      const rec = JSON.parse(recRaw);
+      if (Date.now() - rec.timestamp < 10 * 60 * 1000) {
+        if (rec.capitalInvertible > 0) setCapital(rec.capitalInvertible);
+        setPlannerHint({
+          capital: rec.capitalInvertible,
+          equity:  rec.assetAllocation.equity,
+          bonds:   rec.assetAllocation.bonds + rec.assetAllocation.realEstate
+                                              + rec.assetAllocation.commodities,
+        });
+      }
+      localStorage.removeItem('plannerRecommendation');
+    } catch { /* JSON inválido */ }
+  }
+}, []);
+\end{lstlisting}
+
+\paragraph{TTL de 10 minutos.} Si el usuario guardó la recomendación hace más de 10 minutos, ya no la usamos (probablemente se le olvidó o cambió de idea). Esto es defensivo: evita que una sesión larga acabe aplicando una recomendación obsoleta.
+
+\paragraph{Borrado al consumir.} \texttt{localStorage.removeItem('plannerRecommendation')} asegura que la próxima vez que entre al Optimizer no vuelva a aparecer el banner si no ha pasado por el Planner.
+
+\subsection{Selector de método con UX condicional}
+
+\begin{lstlisting}[language=TypeScript]
+{metodo === 'markowitz' ? (
+  <>
+    <SliderInput label="Volatilidad máxima" /* ... */ />
+    {/* presets pills */}
+  </>
+) : (
+  <div /* ... mensaje explicativo ... */>
+    {metodo === 'min_variance' && '"Mínima varianza" busca la cartera con menor volatilidad...'}
+    {metodo === 'risk_parity' && '"Risk Parity" reparte el riesgo equitativamente...'}
+    {metodo === 'min_cvar' && '"Mínimo CVaR" minimiza la pérdida del peor 5 %...'}
+    {metodo === 'equal_weight' && '"Equal Weight" asigna 1/N a cada activo...'}
+  </div>
+)}
+\end{lstlisting}
+
+\paragraph{El slider solo aparece si tiene sentido.} Solo Markowitz usa la restricción de volatilidad máxima. Los demás métodos no la respetan, así que en lugar de dejar el slider visible (y engañar al usuario haciéndole creer que cambia algo), lo escondemos y mostramos un panel explicativo de por qué no aplica.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{XRayPage.tsx} --- análisis de cartera}
+% -----------------------------------------------------------------------------
+
+Lista las carteras guardadas y, para cada una, ofrece dos vistas: colapsada (donut + sectores) y expandida (todo el análisis Morningstar-like).
+
+\subsection{Carga inicial de datos}
+
+\begin{lstlisting}[language=TypeScript]
+useEffect(() => {
+  Promise.all([
+    getPortfolios(),
+    /* ... */
+  ]).then(([{ data: portfolios }]) => {
+    setPortfolios(portfolios);
+    // Cargar info de cada ticker único en paralelo
+    const allTickers = new Set<string>();
+    portfolios.forEach((p) => p.activos.forEach((a) => allTickers.add(a.ticker)));
+    Promise.allSettled(
+      [...allTickers].map((t) => getTickerInfo(t).then(({ data }) => ({ t, data })))
+    ).then(/* ... acumular en tickerInfos ... */);
+  });
+}, []);
+\end{lstlisting}
+
+\paragraph{\texttt{Promise.allSettled}.} Si algún ticker da error (delisted, problema de red), no queremos que toda la lista falle. \texttt{allSettled} espera a todas las promesas y devuelve resultados independientes (cumplido o rechazado). Solo acumulamos los cumplidos.
+
+\paragraph{Cache implícita en backend.} Los \texttt{getTickerInfo} repetidos los sirve la caché TTL del backend casi instantáneamente. Eso permite que esta operación, que parece costosa, sea rápida en la práctica.
+
+\subsection{Cálculos visuales}
+
+Cada panel expandido es el resultado de varias funciones puras que parten de \texttt{tickerInfos}:
+\begin{itemize}
+  \item \texttt{calcularSectores}: agrega pesos por sector.
+  \item \texttt{calcularPaises}: agrega pesos por país.
+  \item \texttt{calcularStyleBox}: matriz 3$\times$3 cap $\times$ estilo.
+  \item \texttt{calcularMarketCapDist}: \% Large/Mid/Small.
+  \item \texttt{calcularEstiloDist}: \% Value/Blend/Growth.
+  \item \texttt{calcularTipoAccionDist}: \% Cyclical/Sensitive/Defensive.
+  \item \texttt{calcularDividendosCartera}: yield ponderado, top contribuyentes, frecuencias.
+  \item \texttt{calcularAssetClassDist}: \% por clase (Equity, Bonds, RE, etc.).
+\end{itemize}
+
+\paragraph{Mapa coroplético.} Usa \texttt{react-simple-maps} con un topojson del mundo cargado vía CDN. Cada país se colorea según el \% de exposición. El mapeo nombre $\to$ código ISO numérico está hardcodeado para los países más comunes.
+
+\paragraph{Modal de historial.} Botón "Historial" en cada cartera $\to$ abre el \texttt{PortfolioHistoryModal} con la lista de versiones guardadas.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{BacktestPage.tsx}}
+% -----------------------------------------------------------------------------
+
+\paragraph{Dos modos de entrada.} El usuario puede elegir entre cargar una cartera guardada (selector dropdown) o introducir tickers + pesos manualmente. El estado mantiene ambas y al ejecutar usa el activo según el toggle.
+
+\paragraph{Configuración del periodo.} Toggle entre periodos predefinidos (1y, 3y, 5y, 10y, 20y, max, YTD) o rango personalizado de fechas (con dos inputs \texttt{type="date"}).
+
+\paragraph{Rebalanceo y comisiones.} Sección opcional con frecuencia (5 pills) y comisión \%. Solo aparece el input de comisión si se eligió alguna frecuencia distinta de "Ninguno".
+
+\paragraph{Resultados.} Tras ejecutar:
+\begin{itemize}
+  \item Gráfico de evolución (línea de cartera + benchmark SPY).
+  \item 8 métricas en dos filas (rentabilidad, retorno anualizado, volatilidad, Sharpe, Sortino, Calmar, Max DD, Beta).
+  \item Card de descomposición precio vs dividendos con barra apilada y lista de ingresos por año.
+  \item Card de rebalanceo con eventos individuales (si aplica).
+  \item Sección de análisis de crisis con métricas separadas para COVID, Lehman y 2022.
+\end{itemize}
+
+\paragraph{Downsampling para el gráfico.} Si la serie temporal tiene 5000 puntos diarios, se hace downsampling a 300 antes de pasar a Recharts. La función mantiene el primero, el último y muestrea regularmente entre medias.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{ProjectionPage.tsx} --- Monte Carlo}
+% -----------------------------------------------------------------------------
+
+\paragraph{Inputs.} Selector de cartera (cards multi-select), capital inicial, horizonte (slider 1--30 años), número de simulaciones (1000/5000/10000 pills).
+
+\paragraph{Fan chart.} El elemento estrella. Es un \texttt{AreaChart} con dos áreas apiladas:
+
+\begin{lstlisting}[language=TypeScript]
+{/* Banda 5-95 (área amplia) */}
+<Area type="monotone" dataKey="p95" stroke="none" fill="var(--accent)" fillOpacity={0.10} stackId="1a" />
+<Area type="monotone" dataKey="p5"  stroke="none" fill="var(--bg)"     fillOpacity={1}    stackId="1a" />
+{/* Banda 25-75 (área central, más opaca) */}
+<Area type="monotone" dataKey="p75" stroke="none" fill="var(--accent)" fillOpacity={0.22} stackId="1b" />
+<Area type="monotone" dataKey="p25" stroke="none" fill="var(--bg)"     fillOpacity={1}    stackId="1b" />
+{/* Mediana */}
+<Line type="monotone" dataKey="p50" stroke="var(--accent)" dot={false} strokeWidth={2.5} />
+\end{lstlisting}
+
+\paragraph{Truco del fan chart.} Recharts no tiene un componente "rango" nativo, pero \emph{stackId} apila áreas. Pintamos primero \texttt{p95} y encima \texttt{p5} con color de fondo (que efectivamente borra el área de 0 a p5 dejando solo la banda 5-95 visible). Lo mismo con la banda 25-75 en otra capa más opaca. Por encima va la línea de la mediana.
+
+\paragraph{Histograma logarítmico.} \texttt{BarChart} con \texttt{XAxis scale="log"}. Cada barra es un bin del histograma calculado en backend. Coloreadas en rojo si el bin es de pérdida (valor < capital inicial), verde si no.
+
+\paragraph{Disclaimer académico.} Card al final de la página explicando bootstrap vs paramétrico Gaussiano y reconociendo limitaciones. Importante para defensa.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{FiscalidadPage.tsx}}
+% -----------------------------------------------------------------------------
+
+\paragraph{Inputs.} Capital, CAGR esperado, yield de dividendos, horizonte (slider 1--40 años).
+
+\paragraph{Resultados clave.} Dos cards comparativas (ETF distrib en ámbar / Fondo en verde) con desglose de cada uno: bruto, plusvalía, IRPF al rescate, retenciones anuales, IRPF total.
+
+\paragraph{Card del diferimiento.} Destacada en verde con el ahorro absoluto y porcentual. Es el "golazo" visual que demuestra el valor del diferimiento fiscal del marco español.
+
+\paragraph{Bar chart comparativo.} Tres barras lado a lado: bruto teórico (gris), ETF (ámbar), Fondo (verde). Permite ver el efecto fiscal de un vistazo.
+
+\paragraph{Tabla de tramos IRPF aplicados.} Para cada vehículo, una tabla con el desglose por tramos de la base del ahorro: cada tramo con su tipo, base imponible que cae ahí y cuota.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{ComparePage.tsx}}
+% -----------------------------------------------------------------------------
+
+\paragraph{Selector de hasta 4 carteras.} Cards multi-select. El selected guarda los ids elegidos en orden. Cada slot tiene un color del array \texttt{SERIES\_COLORS}.
+
+\paragraph{Ejecución paralela.} \texttt{Promise.all} sobre los \texttt{runBacktest} de cada cartera. Cada una se ejecuta independientemente; si una falla, las otras siguen.
+
+\paragraph{Curvas superpuestas.} \texttt{LineChart} con una línea por cartera (con su color del slot) más la del benchmark SPY (gris punteado). Para que las series tengan el mismo eje X, se calcula la intersección de fechas comunes y se muestrea esa intersección.
+
+\paragraph{Tabla comparada.} 8 métricas para cada cartera + fila del benchmark. Permite ver al instante cuál tiene mejor Sharpe, peor drawdown, mayor Beta, etc.
+
+\paragraph{Composición lado a lado.} \texttt{display: grid, gridTemplateColumns: repeat(N, 1fr)}. Para cada cartera, una columna con barras horizontales mostrando los pesos. Permite detectar concentraciones y solapamientos visualmente.
+
+% -----------------------------------------------------------------------------
+\section{\texttt{ProfilePage.tsx}}
+% -----------------------------------------------------------------------------
+
+Página simplificada después de que el Planner asumiera la edición. Solo muestra:
+\begin{enumerate}
+  \item Card de cuenta (avatar + email).
+  \item Card de resumen del perfil de inversor (capital de referencia y perfil de riesgo, ambos read-only).
+  \item Botón "Editar en el Planificador" que navega a \texttt{/planner}.
+  \item Aviso amarillo si falta configurar capital o perfil.
+\end{enumerate}
+
+\paragraph{Función \texttt{inferPerfilLabel}.} Mapea el \texttt{tolerancia\_riesgo} numérico a una etiqueta legible (Conservador / Moderado / Agresivo) y un color asociado. Es la inversa de \texttt{detectarPerfil} de \texttt{portfolioTemplates.ts}.
+
+% =============================================================================
+\chapter{Cómo se conecta todo}
+% =============================================================================
+
+\section{Flujo del usuario nuevo}
+
+\begin{enumerate}
+  \item Llega a \texttt{/}, ve el Login. Se registra. Token en localStorage. Redirige a \texttt{/dashboard}.
+  \item Index route redirige a \texttt{/dashboard/planner}.
+  \item Rellena el Planner. Pulsa "Aplicar al Optimizador". El planner persiste el perfil y guarda la recomendación en \texttt{localStorage} con TTL 10\,min. Redirige a \texttt{/dashboard/optimizer}.
+  \item OptimizerPage detecta la recomendación, prellena el capital, muestra banner. El usuario elige una plantilla del listado filtrado por perfil, ajusta tickers o método, pulsa Optimizar.
+  \item El backend descarga datos (caché ayuda en peticiones repetidas), ejecuta el optimizer y devuelve pesos + frontera + Pareto + métricas. El frontend renderiza pie + tabla + dos charts.
+  \item Usuario guarda la cartera. Se inserta una fila en \texttt{cartera}, varias en \texttt{activo\_cartera} y opcionalmente nuevas en \texttt{activo}.
+  \item Usuario va a X-Ray, ve la cartera, expande el panel. El frontend lanza \texttt{getTickerInfo} para cada ticker (mucho cae a caché), calcula sectores/países/style box/dividendos/clase de activo y los pinta.
+  \item Usuario va a Backtest, selecciona la cartera, configura periodo y ejecuta. Backtest engine simula 5 años (con dividendos), devuelve métricas + crisis + descomposición.
+  \item Usuario va a Proyección Monte Carlo, selecciona la cartera y proyecta a 10 años. Bootstrap histórico vectorizado, 5000 simulaciones en 270\,ms.
+  \item Usuario va a Fiscalidad, configura horizonte y yield, ve cuánto le costaría el ETF distributivo vs el Fondo acumulativo en términos de IRPF.
+  \item Usuario edita la cartera (modal con pesos editables). Antes de modificar, el backend inserta un snapshot del estado anterior. Después modifica.
+  \item Usuario abre el modal de Historial y ve el timeline de versiones con diffs.
+  \item Usuario va al Comparador, selecciona varias carteras y compara curvas + métricas.
+\end{enumerate}
+
+\section{Patrones arquitectónicos relevantes}
+
+\paragraph{Separación lógica pura $\leftrightarrow$ presentación.} En el frontend, archivos como \texttt{services/planner.ts} contienen lógica que se podría testear con Jest sin montar React. Los componentes solo se ocupan de presentar.
+
+\paragraph{Caché en el backend, sin caché en el frontend.} Como las sesiones de demo son cortas, no merece la pena meter SWR o React Query. La caché del backend (TTL en memoria) es suficiente para que las peticiones repetidas sean instantáneas.
+
+\paragraph{Invariantes en el contrato de tipos.} Cada estructura de datos relevante (\texttt{OptimizeResult}, \texttt{BacktestResult}, \texttt{MonteCarloResult}, \texttt{FiscalidadResult}, \texttt{Portfolio}, \texttt{TickerInfo}, \texttt{UserProfile}) está declarada en \texttt{api.ts}. Si el backend cambia, TypeScript señala todos los puntos del frontend que romperían. Esto reduce muchísimo los bugs de integración.
+
+\paragraph{Caché de plantillas en el frontend.} Las 13 plantillas viven en \texttt{portfolioTemplates.ts} como datos estáticos compilados. No cuesta nada de red. Cuando el usuario aplica una plantilla, simplemente se autorrellena el formulario.
+
+\paragraph{Persistencia entre páginas.} Entre Planner y Optimizer se usa \texttt{localStorage} con TTL. Es la forma más simple de pasar datos entre rutas sin meter Redux o un Context global, y como solo es una transición de UX (no estado persistente), basta.
+
+\section{Ideas para defensa que conviene tener claras}
+
+\paragraph{¿Qué pasa si me piden que optimice con SLSQP "a mano"?}
+Te enseñan: 1) descargar precios, 2) calcular retornos diarios, 3) calcular $\Sigma$ anualizada (cov × 252), 4) definir función objetivo (\texttt{neg\_sharpe}), 5) pasar a \texttt{minimize} con \texttt{method="SLSQP"}, \texttt{bounds=[(0,1)]*n}, \texttt{constraints} de igualdad para suma=1.
+
+\paragraph{¿Y si me preguntan por las constraints de SLSQP?}
+\texttt{type: "eq"} significa $g(w) = 0$. \texttt{type: "ineq"} significa $g(w) \ge 0$. SLSQP soporta ambas y trabaja con derivadas numéricas si no las das.
+
+\paragraph{¿Por qué bootstrap en Monte Carlo y no MVN?}
+Porque MVN asume normalidad, y los retornos reales tienen colas gordas y asimetría negativa. El bootstrap conserva todas las propiedades empíricas de la distribución original.
+
+\paragraph{¿Por qué Risk Parity es relevante?}
+Porque depende solo de $\Sigma$, no de $\mu$. Como $\mu$ es ruidosísimo en estimación, los métodos que lo evitan (RP, Min Variance) tienden a generar carteras más estables out-of-sample.
+
+\paragraph{¿Cómo justifico la elección de la regla del 110?}
+Es una heurística estándar de Bogle y Vanguard. Tiene la ventaja de ser intuitiva: a más edad, menos equity. Combinada con ajustes por perfil y horizonte, da una primera asignación razonable. Reconozco que es simplificada y que para un asesor real haría falta más sofisticación (Black-Litterman, restricciones de liquidez, etc.).
+
+\paragraph{¿Por qué el TFG no incluye Black-Litterman?}
+Porque la curva de aprendizaje es muy alta (matrices de creencias del inversor, modelo de incertidumbre subjetiva) y aporta más como \emph{trabajo futuro} que como funcionalidad central. Está documentado en limitaciones.
+
+\paragraph{¿Por qué el ahorro fiscal del Fondo vs ETF es del 1\,\% y no del 6\,\%?}
+Porque inicialmente había un bug: la implementación gravaba dos veces los dividendos del ETF distributivo (la retención al cobrarlos y la plusvalía al rescatar). Tras revisión se corrigió añadiendo los netos reinvertidos al coste fiscal de adquisición. La cifra realista es del orden del 1\,\% a 20 años, pero crece con el horizonte y el yield: a 30 años con yield 4\,\% puede llegar al 5--7\,\%.
+
+% =============================================================================
+\chapter{Apéndice: comandos útiles}
+% =============================================================================
+
+\section{Backend}
+
+\begin{lstlisting}[language=bash]
+# Levantar el backend con Docker
+docker compose up -d
+
+# Ver tests
+cd backend
+venv/Scripts/python -m pytest -q
+
+# Aplicar migraciones manualmente
+venv/Scripts/python -m alembic upgrade head
+
+# Crear nueva migración
+venv/Scripts/python -m alembic revision -m "descripcion"
+
+# Inspeccionar caché en vivo (con backend corriendo)
+curl http://localhost:8000/assets/cache-stats
+\end{lstlisting}
+
+\section{Frontend}
+
+\begin{lstlisting}[language=bash]
+cd frontend
+
+# Desarrollo (hot reload)
+npm run dev
+
+# Build de producción (con TypeScript estricto)
+npm run build
+
+# Preview del build
+npm run preview
+\end{lstlisting}
+
+\section{Docker Compose}
+
+\begin{lstlisting}[language=bash]
+# Levantar todo
+docker compose up -d
+
+# Ver logs en vivo
+docker compose logs -f backend
+docker compose logs -f db
+
+# Reconstruir tras cambios en Dockerfile
+docker compose up -d --build
+
+# Apagar
+docker compose down
+
+# Apagar Y borrar volumen de la BD (cuidado, se pierde todo)
+docker compose down -v
+\end{lstlisting}
+
+% =============================================================================
+
+\backmatter
+\end{document}

@@ -291,11 +291,12 @@ export default function OptimizerPage() {
         {/* Selector de método de optimización */}
         <div style={{ marginBottom: '18px' }}>
           <label style={LABEL}>Método de optimización</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
             {([
               { id: 'markowitz',    label: 'Sharpe (Markowitz)', descr: 'Maximiza retorno/riesgo ajustado',    color: 'var(--accent)' },
               { id: 'min_variance', label: 'Mínima varianza',    descr: 'La cartera con menos volatilidad',     color: 'var(--green)'  },
               { id: 'risk_parity',  label: 'Risk Parity',         descr: 'Cada activo aporta igual riesgo',     color: 'var(--purple)' },
+              { id: 'min_cvar',     label: 'Mínimo CVaR',         descr: 'Minimiza la pérdida del peor 5 %',    color: 'var(--red)'    },
               { id: 'equal_weight', label: 'Equal Weight (1/N)',  descr: 'Pesos iguales, sin optimización',     color: 'var(--amber)'  },
             ] as const).map(({ id, label, descr, color }) => {
               const active = metodo === id;
@@ -401,6 +402,7 @@ export default function OptimizerPage() {
                 </div>
                 {metodo === 'min_variance' && '"Mínima varianza" busca la cartera con menor volatilidad posible — no necesita un límite, lo minimiza directamente.'}
                 {metodo === 'risk_parity' && '"Risk Parity" reparte el riesgo equitativamente entre activos. La volatilidad resultante depende de la cartera, no se restringe.'}
+                {metodo === 'min_cvar' && '"Mínimo CVaR" minimiza la pérdida media en el peor 5 % de días (Expected Shortfall). Trabaja sobre la cola, no la varianza.'}
                 {metodo === 'equal_weight' && '"Equal Weight" asigna 1/N a cada activo. Sin optimización, sin restricciones — baseline ingenuo.'}
               </div>
             )}
@@ -447,6 +449,7 @@ export default function OptimizerPage() {
                 {result.metodo === 'markowitz'    ? 'Sharpe (Markowitz)'    :
                  result.metodo === 'min_variance' ? 'Mínima varianza'         :
                  result.metodo === 'risk_parity'  ? 'Risk Parity'             :
+                 result.metodo === 'min_cvar'     ? 'Mínimo CVaR (95 %)'      :
                  'Equal Weight (1/N)'}
               </span>
             </div>
@@ -471,30 +474,39 @@ export default function OptimizerPage() {
             ))}
           </div>
 
-          {/* Métricas de calidad de la cartera (concentración / diversificación) */}
+          {/* Métricas de calidad de la cartera (concentración / diversificación / cola) */}
           {result.diversification_ratio != null && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
-              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--purple)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ ...CARD, padding: '14px 16px', borderLeft: '3px solid var(--purple)' }}>
                 <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Diversification ratio</div>
                 <div style={{ color: 'var(--purple)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.diversification_ratio!.toFixed(2)}</div>
                 <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
-                  Choueifaty: ratio entre vol media ponderada y vol cartera. {'>'} 1 indica diversificación efectiva.
+                  Choueifaty: {'>'} 1 indica diversificación efectiva.
                 </div>
               </div>
-              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid #22d3ee' }}>
+              <div style={{ ...CARD, padding: '14px 16px', borderLeft: '3px solid #22d3ee' }}>
                 <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Concentración (HHI)</div>
                 <div style={{ color: '#22d3ee', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.concentracion_hhi!.toFixed(3)}</div>
                 <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
-                  Herfindahl-Hirschman: {'<'} 0.15 → diversificada · {'>'} 0.25 → concentrada.
+                  Herfindahl-Hirschman: {'<'} 0.15 → diversificada.
                 </div>
               </div>
-              <div style={{ ...CARD, padding: '14px 18px', borderLeft: '3px solid var(--amber)' }}>
+              <div style={{ ...CARD, padding: '14px 16px', borderLeft: '3px solid var(--amber)' }}>
                 <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Activos efectivos</div>
                 <div style={{ color: 'var(--amber)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>{result.activos_efectivos!.toFixed(1)}</div>
                 <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
-                  Nº equivalente de activos con peso uniforme. Alto = diversificado, bajo = concentrado.
+                  Nº equivalente con pesos uniformes.
                 </div>
               </div>
+              {result.cvar_95_diario != null && (
+                <div style={{ ...CARD, padding: '14px 16px', borderLeft: '3px solid var(--red)' }}>
+                  <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>CVaR 95 % (diario)</div>
+                  <div style={{ color: 'var(--red)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>−{result.cvar_95_diario!.toFixed(2)}%</div>
+                  <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
+                    Pérdida media en el peor 5 % de días (Expected Shortfall).
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: 'http://127.0.0.1:8000' });
+// Base URL configurable vía variable de entorno Vite (`VITE_API_URL`).
+// Si no está definida, cae al backend local por defecto.
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8000';
+const api = axios.create({ baseURL: API_URL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -31,7 +34,7 @@ export function register(email: string, password: string) {
   return api.post<{ access_token: string }>('/auth/register', { email, password });
 }
 
-export type OptimizationMethod = 'markowitz' | 'min_variance' | 'risk_parity' | 'equal_weight';
+export type OptimizationMethod = 'markowitz' | 'min_variance' | 'risk_parity' | 'equal_weight' | 'min_cvar';
 
 export function optimizePortfolio(
   tickers: string[],
@@ -64,8 +67,139 @@ export function deletePortfolio(id: number) {
   return api.delete(`/portfolio/${id}`);
 }
 
+export interface PortfolioSnapshot {
+  id: number;
+  fecha: string;          // ISO datetime
+  nombre_estrategia: string;
+  pesos: Record<string, number>;
+  motivo: 'edicion' | 'creacion' | 'manual';
+}
+
+export function getPortfolioSnapshots(id: number) {
+  return api.get<PortfolioSnapshot[]>(`/portfolio/${id}/snapshots`);
+}
+
 export function updatePortfolio(id: number, nombre: string, pesos: Record<string, number>) {
   return api.put(`/portfolio/${id}`, { nombre_estrategia: nombre, pesos });
+}
+
+// ─── Monte Carlo ─────────────────────────────────────────────────────────────
+
+export interface MonteCarloPoint {
+  año: number;
+  p5:  number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+}
+
+export type MonteCarloMode = 'historico' | 'ajustado' | 'manual';
+
+export interface MonteCarloResult {
+  parametros: {
+    años: number;
+    n_simulaciones: number;
+    capital_inicial: number;
+    n_dias_historico: number;
+    metodo: string;
+    modo: MonteCarloMode;
+    cagr_aplicado: number | null;   // % anual aplicado, null si modo=historico
+  };
+  historico: {
+    cagr_anual: number;       // % CAGR de la muestra histórica
+    vol_anualizada: number;
+    dias_muestra: number;
+  };
+  aviso_drift: string | null;
+  trayectoria: MonteCarloPoint[];
+  valor_final: {
+    media: number; mediana: number; std: number;
+    p5: number; p25: number; p75: number; p95: number;
+    min: number; max: number;
+  };
+  cagr: { p5: number; p50: number; p95: number; media: number };
+  probabilidad_perdida: number;
+  probabilidad_doblar: number;
+  probabilidad_triplicar: number;
+  histograma: { valor_min: number; valor_max: number; frecuencia: number }[];
+}
+
+// ─── Fiscalidad española ─────────────────────────────────────────────────────
+
+export interface IRPFTramo {
+  desde: number;
+  hasta: number;
+  tipo: number;     // p. ej. 0.19
+  base: number;
+  cuota: number;
+}
+
+export interface IRPFCalculo {
+  total: number;
+  tipo_efectivo: number;
+  desglose: IRPFTramo[];
+}
+
+export interface VehiculoFiscalResult {
+  vehiculo: 'etf_distributivo' | 'fondo_acumulativo';
+  valor_final_bruto: number;
+  valor_final_neto: number;
+  plusvalia: number;
+  irpf_plusvalia: IRPFCalculo;
+  irpf_total: number;
+  dividendos_brutos?: number;
+  retenciones_anuales?: number;
+}
+
+export interface FiscalidadResult {
+  parametros: {
+    capital: number;
+    años: number;
+    retorno_anualizado: number;   // %
+    yield_anual: number;          // %
+  };
+  bruto_teorico: number;
+  etf_distrib: VehiculoFiscalResult;
+  fondo_acum:  VehiculoFiscalResult;
+  diferimiento: {
+    ahorro_eur: number;
+    ahorro_pct: number;
+    irpf_etf:   number;
+    irpf_fondo: number;
+  };
+}
+
+export function runFiscalidad(
+  capital: number,
+  años: number,
+  retornoAnualizado: number,   // decimal
+  yieldAnual: number = 0,      // decimal
+) {
+  return api.post<FiscalidadResult>('/portfolio/fiscalidad', {
+    capital,
+    años,
+    retorno_anualizado: retornoAnualizado,
+    yield_anual: yieldAnual,
+  });
+}
+
+export function runMonteCarlo(
+  tickers: string[],
+  pesos: Record<string, number>,
+  años: number,
+  nSimulaciones: number,
+  capitalInicial: number,
+  modo: MonteCarloMode = 'ajustado',
+  cagrEsperado: number | null = null,
+) {
+  return api.post<MonteCarloResult>('/portfolio/monte-carlo', {
+    tickers, pesos, años,
+    n_simulaciones: nSimulaciones,
+    capital_inicial: capitalInicial,
+    modo,
+    cagr_esperado: cagrEsperado,
+  });
 }
 
 export function runBacktest(
@@ -134,6 +268,8 @@ export interface OptimizeResult {
   diversification_ratio?: number;
   concentracion_hhi?: number;
   activos_efectivos?: number;
+  cvar_95_diario?: number;
+  cvar_95_anual?: number;
   activos_info: Record<string, ActivoInfo>;
   frontera: FronteraPunto[];
   pareto: ParetoPoint[];

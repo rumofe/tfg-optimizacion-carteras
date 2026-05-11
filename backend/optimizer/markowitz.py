@@ -16,7 +16,9 @@ N_STARTS = 20          # puntos de inicio aleatorios para el multi-start
 # - min_variance: Cartera de mínima varianza global (sin restricción de retorno)
 # - risk_parity : Equal Risk Contribution (Maillard-Roncalli 2010)
 # - equal_weight: Asignación 1/N (baseline ingenuo, paper Bessler-Wolff 2017)
-METODOS_SOPORTADOS = ("markowitz", "min_variance", "risk_parity", "equal_weight")
+# - min_cvar    : Mínimo Conditional Value at Risk al 95% (Rockafellar-Uryasev 2000)
+METODOS_SOPORTADOS = ("markowitz", "min_variance", "risk_parity", "equal_weight", "min_cvar")
+CVAR_ALPHA = 0.95  # nivel de confianza para CVaR (95% → penaliza el peor 5%)
 
 
 class MarkowitzOptimizer:
@@ -32,6 +34,20 @@ class MarkowitzOptimizer:
             prices[ticker] = df.set_index("fecha")["valor_liquidativo"]
 
         price_df = pd.DataFrame(prices).dropna()
+        # Si la intersección temporal de los tickers ha dejado el dataset vacío
+        # (algún activo demasiado nuevo, o periodos no coincidentes), avisamos en
+        # lugar de continuar con datos silenciosamente reducidos.
+        if price_df.empty:
+            raise ValueError(
+                "No hay fechas comunes entre los tickers seleccionados. "
+                "Comprueba que todos coticen en el mismo periodo."
+            )
+        if len(price_df.columns) < len(tickers):
+            faltan = [t for t in tickers if t not in price_df.columns]
+            raise ValueError(
+                f"Sin datos suficientes para: {', '.join(faltan)}. "
+                "Quítalos o cambia el periodo."
+            )
         self.tickers = list(price_df.columns)
         self.returns: pd.DataFrame = price_df.pct_change().dropna()
 
@@ -62,6 +78,57 @@ class MarkowitzOptimizer:
         """1/N portfolio (DeMiguel et al. 2009): baseline naive sin optimización."""
         n = len(self.tickers)
         return np.ones(n) / n
+
+    def _min_cvar(self, alpha: float = CVAR_ALPHA) -> np.ndarray:
+        """
+        Minimiza el Conditional Value at Risk (CVaR) al nivel α (Rockafellar-Uryasev 2000).
+
+        CVaR_α (también llamado Expected Shortfall) es el promedio de las pérdidas
+        que superan el VaR_α — es decir, cuánto se pierde "en promedio" cuando
+        las cosas van mal (peor 5 %).
+
+        Ventajas frente a la varianza:
+          - Subaditivo y coherente como medida de riesgo (Artzner 1999).
+          - Captura la magnitud de las pérdidas en la cola, no solo la dispersión.
+          - No exige hipótesis de normalidad: trabaja con la distribución empírica.
+
+        Implementación: minimizamos directamente la CVaR muestral mediante SLSQP
+        con multi-start. Es una formulación no suave pero scipy maneja bien
+        muestras grandes (~500-1000 días).
+        """
+        n = len(self.tickers)
+        returns_matrix = self.returns.values  # (T, n)
+
+        def cvar_loss(w: np.ndarray) -> float:
+            port_returns = returns_matrix @ w
+            losses = -port_returns  # signo: pérdidas positivas
+            var = np.percentile(losses, alpha * 100)
+            tail = losses[losses >= var]
+            if len(tail) == 0:
+                return float(var)
+            return float(tail.mean())
+
+        bounds = [(0.0, 1.0)] * n
+        constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
+        rng = np.random.default_rng(42)
+        starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(8)]
+
+        best = None
+        for w0 in starts:
+            try:
+                res = minimize(
+                    cvar_loss, w0, method="SLSQP",
+                    bounds=bounds, constraints=constraints,
+                    options={"ftol": 1e-9, "maxiter": 500},
+                )
+                if res.success and (best is None or res.fun < best.fun):
+                    best = res
+            except Exception:
+                continue
+        if best is None:
+            logger.warning("Min CVaR: ningún start convergió, usando mínima varianza.")
+            return self._min_varianza(self.calcular_matriz_covarianza().values)
+        return best.x
 
     def _risk_parity(self, cov_matrix: np.ndarray) -> np.ndarray:
         """
@@ -320,6 +387,8 @@ class MarkowitzOptimizer:
             weights = self._risk_parity(cov_matrix)
         elif metodo == "equal_weight":
             weights = self._equal_weight()
+        elif metodo == "min_cvar":
+            weights = self._min_cvar()
         else:  # pragma: no cover (controlado arriba)
             raise ValueError(metodo)
 
@@ -335,6 +404,13 @@ class MarkowitzOptimizer:
         # - Concentración (Herfindahl-Hirschman): 1/N ≤ HHI ≤ 1
         hhi = float(np.sum(weights ** 2))
         n_efectivos = 1.0 / hhi if hhi > 1e-10 else float(len(self.tickers))
+        # - CVaR al 95 % (Expected Shortfall): pérdida media en el peor 5 % de días
+        port_daily = self.returns.values @ weights
+        var_95 = float(np.percentile(-port_daily, 95))
+        tail = (-port_daily)[(-port_daily) >= var_95]
+        cvar_95 = float(tail.mean()) if len(tail) > 0 else var_95
+        # Anualizar (escalado por sqrt(252) es la convención para escalar VaR/CVaR diarios)
+        cvar_95_anual = cvar_95 * np.sqrt(252)
 
         activos_info = {
             t: {
@@ -353,6 +429,8 @@ class MarkowitzOptimizer:
             "diversification_ratio": round(float(diversification_ratio), 4),
             "concentracion_hhi": round(hhi, 4),
             "activos_efectivos": round(n_efectivos, 2),
+            "cvar_95_diario": round(cvar_95 * 100, 4),
+            "cvar_95_anual":  round(cvar_95_anual * 100, 4),
             "activos_info": activos_info,
             "frontera": self.calcular_frontera(),
             "pareto": self.frontera_pareto(),

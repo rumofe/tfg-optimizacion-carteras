@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -48,5 +48,23 @@ class ActivoCartera(Base):
 
     cartera = relationship("Cartera", back_populates="activos")
     activo = relationship("Activo", back_populates="carteras")
+
+
+class CarteraSnapshot(Base):
+    """
+    Versión histórica de una cartera. Cada vez que el usuario modifica los pesos
+    o el nombre de una cartera, el estado anterior se guarda como snapshot.
+    Permite ver la evolución de la cartera en el tiempo.
+    """
+    __tablename__ = "cartera_snapshot"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cartera_id = Column(Integer, ForeignKey("cartera.id"), nullable=False, index=True)
+    fecha = Column(DateTime, nullable=False)
+    nombre_estrategia = Column(String, nullable=False)
+    # Pesos en formato {"AAPL": 0.4, "MSFT": 0.6}
+    pesos = Column(JSON, nullable=False)
+    # Motivo del snapshot: "edicion" | "creacion" | "manual"
+    motivo = Column(String, nullable=False, default="edicion")
 
 

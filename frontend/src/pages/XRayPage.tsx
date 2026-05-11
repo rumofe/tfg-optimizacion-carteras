@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { getPortfolios, deletePortfolio, getTickerInfo, Portfolio, TickerInfo } from '../services/api';
 import EditPortfolioModal from '../components/EditPortfolioModal';
+import PortfolioHistoryModal from '../components/PortfolioHistoryModal';
 import { COLORS, CARD } from '../styles';
 
 interface SectorData { sector: string; peso: number; }
@@ -188,6 +189,7 @@ export default function XRayPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingPortfolio, setEditingPortfolio] = useState<Portfolio | null>(null);
+  const [historyPortfolio, setHistoryPortfolio] = useState<Portfolio | null>(null);
   const [mapTooltip, setMapTooltip] = useState<{ name: string; pct: number; x: number; y: number } | null>(null);
 
   async function cargarCarteras() {
@@ -346,6 +348,21 @@ export default function XRayPage() {
                       }}
                     >
                       Editar
+                    </button>
+                    <button
+                      onClick={() => setHistoryPortfolio(p)}
+                      style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'transparent',
+                        color: 'var(--purple)',
+                        border: '1px solid rgba(124, 58, 237, 0.4)',
+                        borderRadius: '6px',
+                        fontSize: '12px', fontWeight: 500,
+                        cursor: 'pointer',
+                      }}
+                      title="Ver historial de versiones"
+                    >
+                      Historial
                     </button>
                     <button
                       onClick={() => handleDelete(p.id, p.nombre_estrategia)}
@@ -870,6 +887,14 @@ export default function XRayPage() {
             setPortfolios((prev) => prev.map((p) => p.id === updated.id ? updated : p));
             setEditingPortfolio(null);
           }}
+        />
+      )}
+
+      {/* Modal de historial */}
+      {historyPortfolio && (
+        <PortfolioHistoryModal
+          portfolio={historyPortfolio}
+          onClose={() => setHistoryPortfolio(null)}
         />
       )}
     </div>

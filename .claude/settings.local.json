@@ -38,7 +38,15 @@
       "Bash(PGPASSWORD=tfg_password \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT 1;\")",
       "Bash(sc query *)",
       "Bash(docker compose *)",
-      "Bash(PGPASSWORD=tfg_password \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT current_user, current_database\\(\\);\")"
+      "Bash(PGPASSWORD=tfg_password \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U rumofe -h localhost -d tfg_carteras -c \"SELECT current_user, current_database\\(\\);\")",
+      "Bash(venv/Scripts/python.exe -m alembic upgrade head)",
+      "Bash(venv/Scripts/python.exe -m pytest -x -q --ignore=tests/test_portfolio.py)",
+      "Bash(venv/Scripts/python.exe -m pytest -q)",
+      "Bash(grep -E \"\\\\.\\(py|tsx|ts\\)$\")",
+      "Bash(netstat -ano)",
+      "Bash(tasklist /FI \"PID eq 20668\")",
+      "Bash(tasklist /FI \"PID eq 2348\")",
+      "Bash(venv/Scripts/python.exe -m pytest tests/test_security.py::TestJWT::test_token_manipulado_lanza_jwterror -v)"
     ]
   }
 }

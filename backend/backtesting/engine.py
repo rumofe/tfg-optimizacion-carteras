@@ -188,8 +188,14 @@ class BacktestEngine:
         for fecha in precios.index:
             # 1) Aplicar retorno diario a cada ticker → pesos efectivos derivan
             r = retornos.loc[fecha]
-            crecimiento = (pesos * (1 + r)).sum()
-            valor *= float(crecimiento)
+            crecimiento = float((pesos * (1 + r)).sum())
+            # Defensa: si la cartera colapsa al 0 (todos los activos pierden 100 %)
+            # paramos la simulación con valor 0 en lugar de dividir por cero.
+            if crecimiento <= 1e-10:
+                valor = 0.0
+                valores.append(valor)
+                continue
+            valor *= crecimiento
             pesos = (pesos * (1 + r)) / crecimiento
 
             # 2) Rebalanceo (al cierre de ese día)

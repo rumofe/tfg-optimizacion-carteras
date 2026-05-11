@@ -18,7 +18,9 @@ class BacktestRequest(BaseModel):
 
     @field_validator("pesos")
     @classmethod
-    def pesos_suman_uno(cls, v: dict[str, float]) -> dict[str, float]:
+    def pesos_validos(cls, v: dict[str, float]) -> dict[str, float]:
+        if any(w < 0 for w in v.values()):
+            raise ValueError("Los pesos no pueden ser negativos (no se permiten posiciones cortas).")
         total = sum(v.values())
         if abs(total - 1.0) > 1e-4:
             raise ValueError(f"Los pesos deben sumar 1.0, suman {total:.4f}")

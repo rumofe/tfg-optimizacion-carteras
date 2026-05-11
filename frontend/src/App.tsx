@@ -6,6 +6,8 @@ import XRayPage from './pages/XRayPage';
 import BacktestPage from './pages/BacktestPage';
 import ComparePage from './pages/ComparePage';
 import PlannerPage from './pages/PlannerPage';
+import ProjectionPage from './pages/ProjectionPage';
+import FiscalidadPage from './pages/FiscalidadPage';
 import ProfilePage from './pages/ProfilePage';
 
 const router = createBrowserRouter([
@@ -20,6 +22,8 @@ const router = createBrowserRouter([
       { path: 'xray',      element: <XRayPage /> },
       { path: 'backtest',  element: <BacktestPage /> },
       { path: 'compare',   element: <ComparePage /> },
+      { path: 'projection', element: <ProjectionPage /> },
+      { path: 'fiscalidad', element: <FiscalidadPage /> },
       { path: 'profile',   element: <ProfilePage /> },
     ],
   },
