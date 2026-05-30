@@ -6,6 +6,7 @@ import {
   getPortfolios, runBacktest, Portfolio, BacktestResult,
 } from '../services/api';
 import { CARD, LABEL } from '../styles';
+import ProgressBar from '../components/ProgressBar';
 
 // Paleta diferenciada para hasta 4 carteras + benchmark
 const SERIES_COLORS = [
@@ -241,6 +242,18 @@ export default function ComparePage() {
             >
               {running ? 'Ejecutando…' : `Comparar ${selectedIds.length || ''} carteras`}
             </button>
+
+            <ProgressBar
+              running={running}
+              estimatedSeconds={Math.max(selectedIds.length, 1) * 2}
+              title="Comparando carteras"
+              stages={[
+                { at: 0,  label: 'Descargando series de cada cartera…' },
+                { at: 40, label: 'Ejecutando backtests en paralelo…' },
+                { at: 75, label: 'Alineando curvas y métricas…' },
+                { at: 90, label: 'Casi listo…' },
+              ]}
+            />
           </>
         )}
       </div>
@@ -272,13 +285,13 @@ export default function ComparePage() {
                   itemStyle={{ color: 'var(--text)' }}
                 />
                 <Legend formatter={(value) => <span style={{ color: 'var(--text)', fontSize: '12px' }}>{value}</span>} />
-                {carterasConResultado.map((c, i) => (
+                {carterasConResultado.map((c) => (
                   <Line
                     key={c.portfolio.id}
                     type="monotone"
                     dataKey={`p_${c.portfolio.id}`}
                     name={c.portfolio.nombre_estrategia}
-                    stroke={SERIES_COLORS[i]}
+                    stroke={SERIES_COLORS[selectedIds.indexOf(c.portfolio.id) % SERIES_COLORS.length]}
                     strokeWidth={2}
                     dot={false}
                   />
@@ -313,13 +326,13 @@ export default function ComparePage() {
                 </tr>
               </thead>
               <tbody>
-                {carterasConResultado.map((c, i) => {
+                {carterasConResultado.map((c) => {
                   const r = c.result!;
                   return (
                     <tr key={c.portfolio.id}>
                       <td style={{ padding: '12px 8px', borderBottom: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: SERIES_COLORS[i] }} />
+                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: SERIES_COLORS[selectedIds.indexOf(c.portfolio.id) % SERIES_COLORS.length] }} />
                           <span style={{ color: 'var(--text)', fontWeight: 600 }}>{c.portfolio.nombre_estrategia}</span>
                         </div>
                       </td>
@@ -358,10 +371,11 @@ export default function ComparePage() {
               Composición de cada cartera
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${carterasConResultado.length}, 1fr)`, gap: '14px' }}>
-              {carterasConResultado.map((c, i) => {
+              {carterasConResultado.map((c) => {
                 const sorted = [...c.portfolio.activos].sort((a, b) => b.peso_asignado - a.peso_asignado);
+                const colorCartera = SERIES_COLORS[selectedIds.indexOf(c.portfolio.id) % SERIES_COLORS.length];
                 return (
-                  <div key={c.portfolio.id} style={{ borderTop: `3px solid ${SERIES_COLORS[i]}`, paddingTop: '12px' }}>
+                  <div key={c.portfolio.id} style={{ borderTop: `3px solid ${colorCartera}`, paddingTop: '12px' }}>
                     <div style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>
                       {c.portfolio.nombre_estrategia}
                     </div>
@@ -369,7 +383,7 @@ export default function ComparePage() {
                       <div key={a.ticker} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <span style={{ color: 'var(--text)', fontSize: '12px', fontFamily: 'monospace', width: '60px' }}>{a.ticker}</span>
                         <div style={{ flex: 1, height: '6px', backgroundColor: 'var(--raised)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${a.peso_asignado * 100}%`, height: '100%', backgroundColor: SERIES_COLORS[i] }} />
+                          <div style={{ width: `${a.peso_asignado * 100}%`, height: '100%', backgroundColor: colorCartera }} />
                         </div>
                         <span style={{ color: 'var(--text-2)', fontSize: '11px', width: '46px', textAlign: 'right' }}>
                           {(a.peso_asignado * 100).toFixed(1)}%

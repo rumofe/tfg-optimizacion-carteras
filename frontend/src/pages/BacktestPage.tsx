@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { runBacktest, getPortfolios, BacktestResult, Portfolio } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
+import ProgressBar from '../components/ProgressBar';
 import { CARD, COLORS, INPUT, LABEL } from '../styles';
 
 const PERIODS = ['ytd', '1y', '3y', '5y', '10y', '20y', 'max'];
@@ -470,6 +471,18 @@ export default function BacktestPage() {
         >
           {loading ? 'Ejecutando backtest…' : 'Ejecutar backtest'}
         </button>
+
+        <ProgressBar
+          running={loading}
+          estimatedSeconds={3}
+          title="Ejecutando backtest histórico"
+          stages={[
+            { at: 0,  label: 'Descargando series históricas…' },
+            { at: 35, label: 'Simulando evolución de la cartera…' },
+            { at: 65, label: 'Calculando métricas y análisis de crisis…' },
+            { at: 90, label: 'Casi listo…' },
+          ]}
+        />
       </form>
 
       {/* Results */}
@@ -503,35 +516,73 @@ export default function BacktestPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* Métricas fila 1 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
-            {[
-              { label: 'Rent. Acumulada',    value: pct(result.rentabilidad_acumulada),  borderColor: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)',  textColor: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)' },
-              { label: 'Ret. Anualizado',    value: pct(result.retorno_anualizado),       borderColor: result.retorno_anualizado >= 0 ? 'var(--green)' : 'var(--red)',      textColor: result.retorno_anualizado >= 0 ? 'var(--green)' : 'var(--red)' },
-              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada),  borderColor: 'var(--amber)',   textColor: 'var(--amber)' },
-              { label: 'Max Drawdown',       value: pct(result.max_drawdown),            borderColor: 'var(--red)',     textColor: 'var(--red)' },
-            ].map(({ label, value, borderColor, textColor }) => (
-              <div key={label} style={{ ...CARD, padding: '16px 20px', borderLeft: `3px solid ${borderColor}` }}>
-                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</div>
-                <div style={{ color: textColor, fontSize: '22px', fontWeight: 700 }}>{value}</div>
-              </div>
-            ))}
-          </div>
+          {/* Métricas con comparación frente al benchmark (SPY) */}
+          {(() => {
+            const bm = result.benchmark_metricas;
+            // Helper: construye la línea de comparación con el SPY de una métrica.
+            // mejorMayor=true  → un valor mayor que el benchmark es mejor (verde).
+            // mejorMayor=false → un valor menor es mejor (volatilidad, drawdown).
+            // mejorMayor=null  → neutro (beta), sin color de bueno/malo.
+            function comparativa(
+              carteraN: number,
+              benchN: number | undefined,
+              fmtFn: (n: number) => string,
+              mejorMayor: boolean | null,
+              unidad: 'pp' | '',
+            ) {
+              if (benchN == null) return null;
+              const diff = carteraN - benchN;
+              let color = 'var(--text-3)';
+              if (mejorMayor !== null) {
+                const mejor = mejorMayor ? diff > 0 : diff < 0;
+                color = Math.abs(diff) < 1e-9 ? 'var(--text-3)' : (mejor ? 'var(--green)' : 'var(--red)');
+              }
+              const signo = diff >= 0 ? '+' : '';
+              const diffTxt = unidad === 'pp'
+                ? `${signo}${diff.toFixed(2)} pp`
+                : `${signo}${fmt(diff)}`;
+              return (
+                <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                    <span style={{ color: 'var(--text-3)' }}>SPY: {fmtFn(benchN)}</span>
+                    <span style={{ color, fontWeight: 600 }}>{diffTxt}</span>
+                  </div>
+                </div>
+              );
+            }
 
-          {/* Métricas fila 2 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
-            {[
-              { label: 'Sharpe Ratio',  value: fmt(result.sharpe_ratio),                                          borderColor: 'var(--accent)',  textColor: 'var(--accent)' },
-              { label: 'Sortino Ratio', value: fmt(result.sortino_ratio),                                         borderColor: 'var(--purple)',  textColor: 'var(--purple)' },
-              { label: 'Calmar Ratio',  value: fmt(result.calmar_ratio),                                          borderColor: '#22d3ee',        textColor: '#22d3ee' },
-              { label: 'Beta (vs SPY)', value: result.beta !== null ? fmt(result.beta) : '—',                     borderColor: 'var(--amber)',   textColor: 'var(--amber)' },
-            ].map(({ label, value, borderColor, textColor }) => (
-              <div key={label} style={{ ...CARD, padding: '16px 20px', borderLeft: `3px solid ${borderColor}` }}>
-                <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</div>
-                <div style={{ color: textColor, fontSize: '22px', fontWeight: 700 }}>{value}</div>
+            const fila1 = [
+              { label: 'Rent. Acumulada',    value: pct(result.rentabilidad_acumulada),  color: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)', cmp: comparativa(result.rentabilidad_acumulada, bm?.rentabilidad_acumulada, pct, true,  'pp') },
+              { label: 'Ret. Anualizado',    value: pct(result.retorno_anualizado),      color: result.retorno_anualizado >= 0 ? 'var(--green)' : 'var(--red)',     cmp: comparativa(result.retorno_anualizado, bm?.retorno_anualizado, pct, true,  'pp') },
+              { label: 'Volatilidad Anual.', value: pct(result.volatilidad_anualizada),  color: 'var(--amber)',  cmp: comparativa(result.volatilidad_anualizada, bm?.volatilidad_anualizada, pct, false, 'pp') },
+              { label: 'Max Drawdown',       value: pct(result.max_drawdown),            color: 'var(--red)',    cmp: comparativa(result.max_drawdown, bm?.max_drawdown, pct, true,  'pp') },
+            ];
+            const fila2 = [
+              { label: 'Sharpe Ratio',  value: fmt(result.sharpe_ratio),  color: 'var(--accent)',  cmp: comparativa(result.sharpe_ratio, bm?.sharpe_ratio, fmt, true, '') },
+              { label: 'Sortino Ratio', value: fmt(result.sortino_ratio), color: 'var(--purple)',  cmp: comparativa(result.sortino_ratio, bm?.sortino_ratio, fmt, true, '') },
+              { label: 'Calmar Ratio',  value: fmt(result.calmar_ratio),  color: '#22d3ee',        cmp: comparativa(result.calmar_ratio, bm?.calmar_ratio, fmt, true, '') },
+              { label: 'Beta (vs SPY)', value: result.beta !== null ? fmt(result.beta) : '—', color: 'var(--amber)', cmp: comparativa(result.beta ?? 0, bm?.beta, fmt, null, '') },
+            ];
+
+            const renderFila = (metrics: typeof fila1, mb: string) => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: mb }}>
+                {metrics.map(({ label, value, color, cmp }) => (
+                  <div key={label} style={{ ...CARD, padding: '16px 20px', borderLeft: `3px solid ${color}` }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '6px' }}>{label}</div>
+                    <div style={{ color, fontSize: '22px', fontWeight: 700 }}>{value}</div>
+                    {cmp}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+
+            return (
+              <>
+                {renderFila(fila1, '12px')}
+                {renderFila(fila2, '20px')}
+              </>
+            );
+          })()}
 
           {/* Descomposición precio vs dividendos */}
           {result.descomposicion && result.dividendos && (() => {
@@ -687,26 +738,65 @@ export default function BacktestPage() {
           })()}
 
           {/* Benchmark comparison */}
-          <div style={{ ...CARD, marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div>
-              <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>TU CARTERA</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                {pct(result.rentabilidad_acumulada)}
+          {(() => {
+            // Diferencia (alpha) frente al SPY, en puntos porcentuales.
+            const difAcum  = result.rentabilidad_acumulada - result.benchmark_rentabilidad;
+            const difAnual = result.retorno_anualizado - result.benchmark_retorno_anualizado;
+            const bate = difAcum >= 0;
+            const difColor = bate ? 'var(--green)' : 'var(--red)';
+            const signo = (n: number) => (n >= 0 ? '+' : '');
+            return (
+              <div style={{ ...CARD, marginBottom: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+                  {/* Tu cartera */}
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>TU CARTERA</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: result.rentabilidad_acumulada >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {pct(result.rentabilidad_acumulada)}
+                    </div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
+                      {pct(result.retorno_anualizado)} anualizado · Sharpe {fmt(result.sharpe_ratio)}
+                    </div>
+                  </div>
+                  {/* Benchmark */}
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>BENCHMARK (SPY)</div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {pct(result.benchmark_rentabilidad)}
+                    </div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
+                      {pct(result.benchmark_retorno_anualizado)} anualizado
+                    </div>
+                  </div>
+                  {/* Diferencia (alpha) */}
+                  <div style={{ borderLeft: `2px solid ${difColor}`, paddingLeft: '18px' }}>
+                    <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+                      vs. SPY
+                    </div>
+                    <div style={{ fontSize: '28px', fontWeight: 700, color: difColor }}>
+                      {signo(difAcum)}{difAcum.toFixed(2)} pp
+                    </div>
+                    <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
+                      {signo(difAnual)}{difAnual.toFixed(2)} pp anualizado
+                    </div>
+                  </div>
+                </div>
+                {/* Frase resumen */}
+                <div style={{
+                  marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border)',
+                  fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.5,
+                }}>
+                  {bate ? (
+                    <>Tu cartera <strong style={{ color: 'var(--green)' }}>batió al SPY en {difAcum.toFixed(2)} puntos porcentuales</strong> de rentabilidad acumulada
+                    ({signo(difAnual)}{difAnual.toFixed(2)} pp anualizado). Ojo: una mayor rentabilidad puede venir acompañada de mayor riesgo — revisa la volatilidad ({pct(result.volatilidad_anualizada)}) y la beta ({result.beta !== null ? fmt(result.beta) : '—'}).</>
+                  ) : (
+                    <>Tu cartera <strong style={{ color: 'var(--red)' }}>quedó por debajo del SPY en {Math.abs(difAcum).toFixed(2)} puntos porcentuales</strong> de rentabilidad acumulada
+                    ({signo(difAnual)}{difAnual.toFixed(2)} pp anualizado). Esto no es necesariamente malo si tu cartera asumió menos riesgo: compara la volatilidad ({pct(result.volatilidad_anualizada)}) y el máximo drawdown ({pct(result.max_drawdown)}) frente a los del índice.</>
+                  )}
+                </div>
               </div>
-              <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
-                {pct(result.retorno_anualizado)} anualizado · Sharpe {fmt(result.sharpe_ratio)}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: 'var(--text-2)', fontSize: '13px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>BENCHMARK (SPY)</div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: result.benchmark_rentabilidad >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                {pct(result.benchmark_rentabilidad)}
-              </div>
-              <div style={{ color: 'var(--text-2)', fontSize: '12px', marginTop: '4px' }}>
-                {pct(result.benchmark_retorno_anualizado)} anualizado
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Crisis Analysis */}
           <div style={CARD}>

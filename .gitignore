@@ -34,3 +34,5 @@ Thumbs.db
 # Data sensible
 data/*.pdf
 .claude
+docs/
+PortfolioLab_Resumen_Tecnico.docx

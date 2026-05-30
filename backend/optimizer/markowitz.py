@@ -51,12 +51,27 @@ class MarkowitzOptimizer:
         self.tickers = list(price_df.columns)
         self.returns: pd.DataFrame = price_df.pct_change().dropna()
 
+    # Restricción de pesos por activo (configurable desde optimizar()).
+    # Por defecto sin restricción: cada activo entre 0 % y 100 %.
+    peso_min: float = 0.0
+    peso_max: float = 1.0
+
     def calcular_matriz_covarianza(self) -> pd.DataFrame:
         """Devuelve la matriz de covarianzas anualizada (× 252 días de trading)."""
         return self.returns.cov() * 252
 
     def _portfolio_vol(self, weights: np.ndarray, cov_matrix: np.ndarray) -> float:
         return float(np.sqrt(weights @ cov_matrix @ weights))
+
+    def _bounds(self, n: int, floor: float = 0.0) -> list[tuple[float, float]]:
+        """
+        Construye los límites de peso por activo según peso_min/peso_max.
+        `floor` es un suelo numérico mínimo (1e-6 para Risk Parity, que necesita
+        pesos estrictamente positivos para que las contribuciones marginales
+        sean derivables).
+        """
+        lo = max(self.peso_min, floor)
+        return [(lo, self.peso_max)] * n
 
     def _min_varianza(self, cov_matrix: np.ndarray) -> np.ndarray:
         """Calcula los pesos del portfolio de mínima varianza global."""
@@ -65,7 +80,7 @@ class MarkowitzOptimizer:
             lambda w: self._portfolio_vol(w, cov_matrix),
             np.ones(n) / n,
             method="SLSQP",
-            bounds=[(0.0, 1.0)] * n,
+            bounds=self._bounds(n),
             constraints=[{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}],
             options={"ftol": 1e-12, "maxiter": 2000},
         )
@@ -108,7 +123,7 @@ class MarkowitzOptimizer:
                 return float(var)
             return float(tail.mean())
 
-        bounds = [(0.0, 1.0)] * n
+        bounds = self._bounds(n)
         constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
         rng = np.random.default_rng(42)
         starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(8)]
@@ -155,7 +170,7 @@ class MarkowitzOptimizer:
             mean = rc.mean()
             return float(np.sum((rc - mean) ** 2))
 
-        bounds = [(1e-6, 1.0)] * n  # evitamos w=0 que rompería derivabilidad
+        bounds = self._bounds(n, floor=1e-6)  # suelo 1e-6: evita w=0 (derivabilidad)
         constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
         rng = np.random.default_rng(42)
         starts = [np.ones(n) / n] + [rng.dirichlet(np.ones(n)) for _ in range(5)]
@@ -206,7 +221,7 @@ class MarkowitzOptimizer:
         n = len(self.tickers)
         cov_matrix = self.calcular_matriz_covarianza().values
         mean_returns = self.returns.mean().values * 252
-        bounds = [(0.0, 1.0)] * n
+        bounds = self._bounds(n)
         constraints = [{"type": "eq", "fun": lambda w: np.sum(w) - 1.0}]
         rng = np.random.default_rng(42)
 
@@ -277,7 +292,7 @@ class MarkowitzOptimizer:
                 {"type": "eq", "fun": lambda w: float(np.sum(w)) - 1.0},
                 {"type": "eq", "fun": lambda w, t=target: float(np.dot(w, mean_returns)) - t},
             ]
-            bounds = [(0.0, 1.0)] * n
+            bounds = self._bounds(n)
             result = minimize(
                 lambda w: self._portfolio_vol(w, cov_matrix),
                 np.ones(n) / n,
@@ -315,7 +330,7 @@ class MarkowitzOptimizer:
             {"type": "eq",   "fun": lambda w: np.sum(w) - 1.0},
             {"type": "ineq", "fun": lambda w: max_volatilidad - self._portfolio_vol(w, cov_matrix)},
         ]
-        bounds = [(0.0, 1.0)] * n
+        bounds = self._bounds(n)
 
         rng = np.random.default_rng(42)
         starting_points = [np.ones(n) / n] + [
@@ -357,6 +372,8 @@ class MarkowitzOptimizer:
         max_volatilidad: float,
         capital: float,
         metodo: str = "markowitz",
+        peso_min: float = 0.0,
+        peso_max: float = 1.0,
     ) -> dict:
         """
         Despacha el cálculo según el método de optimización elegido.
@@ -366,6 +383,12 @@ class MarkowitzOptimizer:
           - 'min_variance': mínima varianza global (sin restricción de retorno)
           - 'risk_parity':  Equal Risk Contribution — cada activo aporta el mismo riesgo
           - 'equal_weight': 1/N — baseline naive sin optimización
+          - 'min_cvar':     mínimo Conditional Value at Risk al 95 %
+
+        peso_min / peso_max acotan el peso de cada activo (en decimal, 0-1).
+        Por defecto 0 y 1 (sin restricción). Forzar peso_min > 0 evita que el
+        optimizador descarte activos (peso 0 %), pero produce una cartera
+        SUBÓPTIMA respecto al criterio elegido: se devuelve un aviso.
 
         Devuelve siempre los mismos campos: pesos, retorno, volatilidad, sharpe,
         frontera eficiente y frontera de Pareto (estas últimas son del marco
@@ -375,6 +398,26 @@ class MarkowitzOptimizer:
             raise ValueError(
                 f"Método desconocido: '{metodo}'. Opciones: {METODOS_SOPORTADOS}"
             )
+
+        n = len(self.tickers)
+        # --- Validación de factibilidad de los límites de peso ---
+        if not (0.0 <= peso_min <= 1.0) or not (0.0 < peso_max <= 1.0):
+            raise ValueError("Los pesos mínimo y máximo deben estar entre 0 % y 100 %.")
+        if peso_min > peso_max:
+            raise ValueError("El peso mínimo no puede superar al peso máximo.")
+        if peso_min * n > 1.0 + 1e-9:
+            raise ValueError(
+                f"Peso mínimo de {peso_min*100:.1f}% × {n} activos supera el 100 %. "
+                f"Reduce el mínimo (máximo posible: {100/n:.1f}%) o quita activos."
+            )
+        if peso_max * n < 1.0 - 1e-9:
+            raise ValueError(
+                f"Peso máximo de {peso_max*100:.1f}% × {n} activos no llega al 100 %. "
+                f"Sube el máximo (mínimo posible: {100/n:.1f}%) o añade activos."
+            )
+        self.peso_min = peso_min
+        self.peso_max = peso_max
+        restriccion_activa = peso_min > 1e-9 or peso_max < 1.0 - 1e-9
 
         cov_matrix = self.calcular_matriz_covarianza().values
         mean_returns = self.returns.mean().values * 252
@@ -420,6 +463,17 @@ class MarkowitzOptimizer:
             for i, (t, r) in enumerate(zip(self.tickers, mean_returns))
         }
 
+        aviso_restriccion = None
+        if restriccion_activa and metodo != "equal_weight":
+            aviso_restriccion = (
+                f"Has restringido los pesos por activo "
+                f"({peso_min*100:.0f}%–{peso_max*100:.0f}%). La cartera resultante es "
+                "subóptima respecto al criterio elegido: forzar pesos mínimos/máximos "
+                "reduce el espacio de soluciones y aleja el resultado del óptimo "
+                "matemático puro. Úsalo solo si quieres garantizar exposición a todos "
+                "los activos."
+            )
+
         return {
             "metodo": metodo,
             "pesos": {t: float(w) for t, w in zip(self.tickers, weights)},
@@ -431,6 +485,9 @@ class MarkowitzOptimizer:
             "activos_efectivos": round(n_efectivos, 2),
             "cvar_95_diario": round(cvar_95 * 100, 4),
             "cvar_95_anual":  round(cvar_95_anual * 100, 4),
+            "peso_min": round(peso_min * 100, 2),
+            "peso_max": round(peso_max * 100, 2),
+            "aviso_restriccion": aviso_restriccion,
             "activos_info": activos_info,
             "frontera": self.calcular_frontera(),
             "pareto": self.frontera_pareto(),

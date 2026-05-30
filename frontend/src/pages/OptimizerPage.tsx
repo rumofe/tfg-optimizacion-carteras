@@ -6,6 +6,8 @@ import {
 import { optimizePortfolio, savePortfolio, getProfile, OptimizeResult, ParetoPoint, OptimizationMethod } from '../services/api';
 import TickerSearch from '../components/TickerSearch';
 import SliderInput from '../components/SliderInput';
+import RangeSlider from '../components/RangeSlider';
+import ProgressBar from '../components/ProgressBar';
 import { COLORS, CARD, INPUT, LABEL } from '../styles';
 import { TEMPLATES, PERFIL_META, detectarPerfil, PortfolioTemplate, PerfilTemplate } from '../portfolioTemplates';
 
@@ -63,6 +65,8 @@ export default function OptimizerPage() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [capital, setCapital] = useState(10000);
   const [maxVol, setMaxVol] = useState(25);
+  const [pesoMinPct, setPesoMinPct] = useState(0);     // % mínimo por activo
+  const [pesoMaxPct, setPesoMaxPct] = useState(100);   // % máximo por activo
   const [userProfile, setUserProfile] = useState<PerfilTemplate | null>(null);
   const [mostrarTodasPlantillas, setMostrarTodasPlantillas] = useState(false);
   const [plantillaActiva, setPlantillaActiva] = useState<string | null>(null);
@@ -116,7 +120,7 @@ export default function OptimizerPage() {
     if (tickers.length < 2) { setError('Añade al menos 2 activos para optimizar la cartera.'); return; }
     setError(''); setResult(null); setShowSaveForm(false); setSaveMsg(null); setLoading(true);
     try {
-      const { data } = await optimizePortfolio(tickers, capital, maxVol / 100, metodo);
+      const { data } = await optimizePortfolio(tickers, capital, maxVol / 100, metodo, pesoMinPct / 100, pesoMaxPct / 100);
       setResult(data); setSubmittedTickers(tickers); setSubmittedCapital(capital);
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
@@ -409,6 +413,29 @@ export default function OptimizerPage() {
           </div>
         </div>
 
+        {/* Restricción de pesos por activo (no aplica a Equal Weight) */}
+        {metodo !== 'equal_weight' && (
+          <div style={{ marginBottom: '20px', paddingTop: '4px' }}>
+            <label style={LABEL}>
+              Límite de peso por activo <span style={{ color: 'var(--text-3)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· opcional</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px', alignItems: 'center' }}>
+              <RangeSlider
+                min={0} max={100} step={1}
+                valueMin={pesoMinPct}
+                valueMax={pesoMaxPct}
+                onChange={(lo, hi) => { setPesoMinPct(lo); setPesoMaxPct(hi); }}
+                suffix="%"
+              />
+              <p style={{ color: 'var(--text-2)', fontSize: '10px', margin: 0, lineHeight: 1.5 }}>
+                Por defecto 0–100 % (óptimo matemático puro: puede asignar 0 % a algún activo).
+                Subir el mínimo fuerza a incluir todos los activos, pero da una cartera
+                <strong> subóptima</strong> respecto al criterio elegido. Máx. mínimo posible: {tickers.length > 0 ? (100 / tickers.length).toFixed(0) : '—'} % (1/N).
+              </p>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div style={{
             color: 'var(--red)', fontSize: '13px', marginBottom: '16px',
@@ -431,6 +458,14 @@ export default function OptimizerPage() {
         }}>
           {loading ? 'Optimizando…' : 'Optimizar cartera'}
         </button>
+
+        {/* Barra de progreso estimada durante la optimización.
+            Estimación: ~1.5 s base + 0.4 s por activo (descarga + fronteras). */}
+        <ProgressBar
+          running={loading}
+          estimatedSeconds={1.5 + tickers.length * 0.4}
+          title="Optimizando cartera"
+        />
       </form>
 
       {result && (
@@ -452,6 +487,21 @@ export default function OptimizerPage() {
                  result.metodo === 'min_cvar'     ? 'Mínimo CVaR (95 %)'      :
                  'Equal Weight (1/N)'}
               </span>
+            </div>
+          )}
+
+          {/* Aviso de restricción de pesos (cartera subóptima) */}
+          {result.aviso_restriccion && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: 'rgba(232, 166, 64, 0.10)',
+              border: '1px solid rgba(232, 166, 64, 0.4)',
+              borderLeft: '3px solid var(--amber)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--text-2)', fontSize: '12px', lineHeight: 1.55,
+            }}>
+              <strong style={{ color: 'var(--amber)' }}>⚠ Cartera con pesos restringidos:</strong> {result.aviso_restriccion}
             </div>
           )}
 
@@ -498,12 +548,12 @@ export default function OptimizerPage() {
                   Nº equivalente con pesos uniformes.
                 </div>
               </div>
-              {result.cvar_95_diario != null && (
+              {result.cvar_95_anual != null && (
                 <div style={{ ...CARD, padding: '14px 16px', borderLeft: '3px solid var(--red)' }}>
-                  <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>CVaR 95 % (diario)</div>
-                  <div style={{ color: 'var(--red)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>−{result.cvar_95_diario!.toFixed(2)}%</div>
+                  <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>CVaR 95 % (anual)</div>
+                  <div style={{ color: 'var(--red)', fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>−{result.cvar_95_anual!.toFixed(2)}%</div>
                   <div style={{ color: 'var(--text-3)', fontSize: '10px', marginTop: '3px', lineHeight: 1.4 }}>
-                    Pérdida media en el peor 5 % de días (Expected Shortfall).
+                    Pérdida media esperada en el peor 5 % de escenarios, anualizada (Expected Shortfall).
                   </div>
                 </div>
               )}
@@ -562,8 +612,8 @@ export default function OptimizerPage() {
             </div>
           </div>
 
-          {/* Frontera Eficiente */}
-          {fronteraData.length > 0 && (
+          {/* Frontera Eficiente (solo Markowitz: la estrella marca el max-Sharpe) */}
+          {result.metodo === 'markowitz' && fronteraData.length > 0 && (
             <div style={{ ...CARD, marginBottom: '24px' }}>
               <h3 style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Frontera Eficiente de Markowitz
@@ -603,8 +653,8 @@ export default function OptimizerPage() {
             </div>
           )}
 
-          {/* Frontera de Pareto */}
-          {result.pareto && result.pareto.length > 0 && (() => {
+          {/* Frontera de Pareto (solo Markowitz: la estrella marca el max-Sharpe) */}
+          {result.metodo === 'markowitz' && result.pareto && result.pareto.length > 0 && (() => {
             const maxSharpePoint = result.pareto.reduce((a, b) => a.sharpe > b.sharpe ? a : b);
             return (
               <div style={{ ...CARD, marginBottom: '24px' }}>

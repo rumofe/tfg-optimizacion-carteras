@@ -7,6 +7,7 @@ import {
   getPortfolios, runMonteCarlo, getProfile, Portfolio, MonteCarloResult, MonteCarloMode,
 } from '../services/api';
 import { CARD, INPUT, LABEL } from '../styles';
+import ProgressBar from '../components/ProgressBar';
 
 function eur(n: number) { return n.toLocaleString('es-ES', { maximumFractionDigits: 0 }); }
 function pct(n: number) { return `${(n * 100).toFixed(1)}%`; }
@@ -261,6 +262,18 @@ export default function ProjectionPage() {
             >
               {loading ? 'Simulando…' : `→ Ejecutar ${nSims.toLocaleString('es-ES')} simulaciones`}
             </button>
+
+            <ProgressBar
+              running={loading}
+              estimatedSeconds={1 + nSims / 3000}
+              title="Simulando trayectorias Monte Carlo"
+              stages={[
+                { at: 0,  label: 'Descargando histórico de la cartera…' },
+                { at: 35, label: 'Generando muestras bootstrap…' },
+                { at: 65, label: 'Componiendo trayectorias y percentiles…' },
+                { at: 90, label: 'Casi listo…' },
+              ]}
+            />
           </>
         )}
       </div>

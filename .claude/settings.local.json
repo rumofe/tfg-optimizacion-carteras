@@ -46,7 +46,16 @@
       "Bash(netstat -ano)",
       "Bash(tasklist /FI \"PID eq 20668\")",
       "Bash(tasklist /FI \"PID eq 2348\")",
-      "Bash(venv/Scripts/python.exe -m pytest tests/test_security.py::TestJWT::test_token_manipulado_lanza_jwterror -v)"
+      "Bash(venv/Scripts/python.exe -m pytest tests/test_security.py::TestJWT::test_token_manipulado_lanza_jwterror -v)",
+      "Bash(cd \"/c/TFG/tfg-optimizacion-carteras/docs/skeleton_uma\" && ls -la)",
+      "Bash(rm -rf _etsi_extract _econ_extract)",
+      "Bash(mkdir -p _etsi_extract _econ_extract)",
+      "Bash(unzip -o -q \"UMA_TFG_ETSI_Plantilla_Español.zip\" -d _etsi_extract)",
+      "Bash(unzip -o -q \"tfg_economia_uma_main \\(1\\).zip\" -d _econ_extract)",
+      "Bash(cp -r \"C:\\\\Users\\\\rumofe\\\\Downloads\\\\_etsi_extract\\\\template\" memoria_uma_etsi/)",
+      "Bash(cp \"C:\\\\Users\\\\rumofe\\\\Downloads\\\\_etsi_extract\\\\references.bib\" memoria_uma_etsi/references_template.bib)",
+      "Bash(grep -niE \"babel|language|spanish|\\\\\\\\\\\\\\\\selectlanguage|csquotes\" template-TFGspanish-uma.sty)",
+      "Bash(xelatex --version)"
     ]
   }
 }

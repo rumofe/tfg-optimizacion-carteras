@@ -64,24 +64,6 @@ function calcularStyleBox(activos: Portfolio['activos'], infos: Record<string, T
   return box;
 }
 
-function calcularMarketCapDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
-  const out: Record<string, number> = { 'Large Cap': 0, 'Mid Cap': 0, 'Small Cap': 0 };
-  for (const a of activos) {
-    const cat = infos[a.ticker]?.market_cap_categoria;
-    if (cat && cat !== 'Desconocido') out[cat] = (out[cat] ?? 0) + a.peso_asignado * 100;
-  }
-  return out;
-}
-
-function calcularEstiloDist(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): Record<string, number> {
-  const out: Record<string, number> = { Value: 0, Blend: 0, Growth: 0 };
-  for (const a of activos) {
-    const est = infos[a.ticker]?.estilo_inversion;
-    if (est && est !== 'Desconocido') out[est] = (out[est] ?? 0) + a.peso_asignado * 100;
-  }
-  return out;
-}
-
 interface DividendosCartera {
   yieldPonderado: number;            // % anual de la cartera completa
   topPagadores: { ticker: string; yield: number; peso: number; aporte: number }[];
@@ -157,6 +139,34 @@ function calcularTipoAccionDist(activos: Portfolio['activos'], infos: Record<str
     if (tipo && tipo !== 'Desconocido') out[tipo] = (out[tipo] ?? 0) + a.peso_asignado * 100;
   }
   return out;
+}
+
+// ─── Exposición por divisa ───────────────────────────────────────────────────
+// La divisa de cotización (campo `moneda` de yfinance) determina a qué moneda
+// está expuesto el inversor por tipo de cambio. P. ej. comprar SPY en USD
+// expone al EUR/USD aunque el inversor sea europeo.
+const DIVISA_INFO: Record<string, { label: string; color: string }> = {
+  USD: { label: 'Dólar estadounidense', color: 'var(--accent)' },
+  EUR: { label: 'Euro',                 color: 'var(--green)'  },
+  GBP: { label: 'Libra esterlina',      color: 'var(--purple)' },
+  JPY: { label: 'Yen japonés',          color: 'var(--amber)'  },
+  CHF: { label: 'Franco suizo',         color: '#22d3ee'       },
+  CAD: { label: 'Dólar canadiense',     color: 'var(--red)'    },
+};
+const DIVISA_COLOR_FALLBACK = 'var(--text-2)';
+
+function calcularDivisaDist(
+  activos: Portfolio['activos'],
+  infos: Record<string, TickerInfo>,
+): { divisa: string; pct: number }[] {
+  const mapa: Record<string, number> = {};
+  for (const a of activos) {
+    const divisa = (infos[a.ticker]?.moneda || 'Desconocida').toUpperCase();
+    mapa[divisa] = (mapa[divisa] ?? 0) + a.peso_asignado * 100;
+  }
+  return Object.entries(mapa)
+    .map(([divisa, pct]) => ({ divisa, pct }))
+    .sort((a, b) => b.pct - a.pct);
 }
 
 function calcularSectores(activos: Portfolio['activos'], infos: Record<string, TickerInfo>): SectorData[] {
@@ -285,16 +295,22 @@ export default function XRayPage() {
               value: parseFloat((a.peso_asignado * 100).toFixed(2)),
             }));
 
+            // Color FIJO por ticker (según el orden original de los activos),
+            // para que el mismo activo tenga el mismo color en el donut, la
+            // leyenda y la lista de pesos (que va ordenada por peso).
+            const colorByTicker: Record<string, string> = Object.fromEntries(
+              p.activos.map((a, i) => [a.ticker, COLORS[i % COLORS.length]]),
+            );
+
             const sectores       = calcularSectores(p.activos, tickerInfos);
             const paises         = calcularPaises(p.activos, tickerInfos);
             const isExpanded     = expandedId === p.id;
             const styleBox       = calcularStyleBox(p.activos, tickerInfos);
-            const marketCapDist  = calcularMarketCapDist(p.activos, tickerInfos);
-            const estiloDist     = calcularEstiloDist(p.activos, tickerInfos);
             const tipoAccionDist = calcularTipoAccionDist(p.activos, tickerInfos);
             const dividendos     = calcularDividendosCartera(p.activos, tickerInfos);
             const assetClassDist = calcularAssetClassDist(p.activos, tickerInfos);
             const assetClassesPresentes = ASSET_CLASS_ORDER.filter((c) => assetClassDist[c] > 0.05);
+            const divisaDist     = calcularDivisaDist(p.activos, tickerInfos);
             const maxBoxValue    = Math.max(
               ...CAPS_BOX.flatMap(c => STYLES_BOX.map(s => styleBox[c]?.[s] ?? 0)), 0.01
             );
@@ -399,8 +415,8 @@ export default function XRayPage() {
                           dataKey="value"
                           strokeWidth={0}
                         >
-                          {pieData.map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          {pieData.map((d, i) => (
+                            <Cell key={i} fill={colorByTicker[d.name]} />
                           ))}
                         </Pie>
                         <Tooltip
@@ -426,12 +442,12 @@ export default function XRayPage() {
                       {p.activos
                         .slice()
                         .sort((a, b) => b.peso_asignado - a.peso_asignado)
-                        .map((a, i) => {
+                        .map((a) => {
                           const info = tickerInfos[a.ticker];
                           return (
                             <div key={a.ticker} style={{ marginBottom: '10px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                <span style={{ color: COLORS[i % COLORS.length], fontSize: '13px', fontWeight: 700 }}>
+                                <span style={{ color: colorByTicker[a.ticker], fontSize: '13px', fontWeight: 700 }}>
                                   {a.ticker}
                                 </span>
                                 <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: 600 }}>
@@ -448,7 +464,7 @@ export default function XRayPage() {
                                 <div style={{
                                   height: '100%',
                                   width: `${a.peso_asignado * 100}%`,
-                                  backgroundColor: COLORS[i % COLORS.length],
+                                  backgroundColor: colorByTicker[a.ticker],
                                   borderRadius: '2px',
                                 }} />
                               </div>
@@ -703,40 +719,51 @@ export default function XRayPage() {
                           </div>
                         </div>
 
-                        {/* Barras Market Cap + Estilo */}
+                        {/* Exposición por divisa */}
                         <div>
-                          <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '10px' }}>Por capitalización</div>
-                          {CAPS_BOX.map((cat, i) => {
-                            const pct = marketCapDist[cat] ?? 0;
+                          <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '4px' }}>Exposición por divisa</div>
+                          <div style={{ color: 'var(--text-3)', fontSize: '10px', marginBottom: '12px', lineHeight: 1.4 }}>
+                            Divisa en que cotiza cada activo. Determina tu riesgo de tipo de cambio.
+                          </div>
+                          {/* Barra apilada */}
+                          <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', backgroundColor: 'var(--raised)', marginBottom: '14px' }}>
+                            {divisaDist.map(({ divisa, pct }) => (
+                              <div key={divisa}
+                                title={`${divisa}: ${pct.toFixed(1)}%`}
+                                style={{ width: `${pct}%`, backgroundColor: DIVISA_INFO[divisa]?.color ?? DIVISA_COLOR_FALLBACK }} />
+                            ))}
+                          </div>
+                          {/* Lista detallada */}
+                          {divisaDist.map(({ divisa, pct }) => {
+                            const info = DIVISA_INFO[divisa];
                             return (
-                              <div key={cat} style={{ marginBottom: '10px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                                  <span style={{ color: 'var(--text)', fontSize: '12px' }}>{cat}</span>
+                              <div key={divisa} style={{ marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', alignItems: 'baseline' }}>
+                                  <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>
+                                    {divisa}
+                                    <span style={{ color: 'var(--text-3)', fontSize: '10px', fontWeight: 400, marginLeft: '6px' }}>
+                                      {info?.label ?? ''}
+                                    </span>
+                                  </span>
                                   <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
                                 </div>
                                 <div style={{ height: '7px', backgroundColor: 'var(--raised)', borderRadius: '4px', overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length], borderRadius: '4px' }} />
+                                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: info?.color ?? DIVISA_COLOR_FALLBACK, borderRadius: '4px' }} />
                                 </div>
                               </div>
                             );
                           })}
-
-                          <div style={{ color: 'var(--text-2)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', margin: '16px 0 10px' }}>Por estilo de inversión</div>
-                          {STYLES_BOX.map((est, i) => {
-                            const pct = estiloDist[est] ?? 0;
-                            const estColors = ['#10b981', 'var(--accent)', 'var(--purple)'];
-                            return (
-                              <div key={est} style={{ marginBottom: '10px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                                  <span style={{ color: 'var(--text)', fontSize: '12px' }}>{est}</span>
-                                  <span style={{ color: 'var(--text)', fontSize: '12px', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
-                                </div>
-                                <div style={{ height: '7px', backgroundColor: 'var(--raised)', borderRadius: '4px', overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, backgroundColor: estColors[i], borderRadius: '4px' }} />
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {/* Aviso de concentración en una sola divisa distinta del EUR */}
+                          {divisaDist.length === 1 && divisaDist[0].divisa !== 'EUR' && (
+                            <div style={{
+                              marginTop: '10px', padding: '9px 11px',
+                              backgroundColor: 'rgba(232,166,64,0.08)',
+                              border: '1px solid rgba(232,166,64,0.3)',
+                              borderRadius: '6px', fontSize: '10px', color: 'var(--amber)', lineHeight: 1.4,
+                            }}>
+                              ⚠ Toda tu cartera cotiza en {divisaDist[0].divisa}. Como inversor en euros, asumes el 100 % del riesgo de tipo de cambio {divisaDist[0].divisa}/EUR.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

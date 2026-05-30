@@ -21,7 +21,9 @@ class OptimizeRequest(BaseModel):
     tickers: list[str]
     capital: float
     max_volatilidad: float
-    metodo: str = "markowitz"   # markowitz | min_variance | risk_parity | equal_weight
+    metodo: str = "markowitz"   # markowitz | min_variance | risk_parity | equal_weight | min_cvar
+    peso_min: float = 0.0       # peso mínimo por activo (decimal, 0-1)
+    peso_max: float = 1.0       # peso máximo por activo (decimal, 0-1)
 
 
 class MonteCarloRequest(BaseModel):
@@ -73,6 +75,8 @@ def optimize_portfolio(payload: OptimizeRequest):
             max_volatilidad=payload.max_volatilidad,
             capital=payload.capital,
             metodo=payload.metodo,
+            peso_min=payload.peso_min,
+            peso_max=payload.peso_max,
         )
     except DataSourceError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))

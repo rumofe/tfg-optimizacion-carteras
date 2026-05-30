@@ -41,12 +41,16 @@ export function optimizePortfolio(
   capital: number,
   maxVolatilidad: number,
   metodo: OptimizationMethod = 'markowitz',
+  pesoMin: number = 0,
+  pesoMax: number = 1,
 ) {
   return api.post<OptimizeResult>('/portfolio/optimize', {
     tickers,
     capital,
     max_volatilidad: maxVolatilidad,
     metodo,
+    peso_min: pesoMin,
+    peso_max: pesoMax,
   });
 }
 
@@ -270,6 +274,9 @@ export interface OptimizeResult {
   activos_efectivos?: number;
   cvar_95_diario?: number;
   cvar_95_anual?: number;
+  peso_min?: number;
+  peso_max?: number;
+  aviso_restriccion?: string | null;
   activos_info: Record<string, ActivoInfo>;
   frontera: FronteraPunto[];
   pareto: ParetoPoint[];
@@ -331,6 +338,16 @@ export interface BacktestResult {
   beta: number | null;
   benchmark_rentabilidad: number;
   benchmark_retorno_anualizado: number;
+  benchmark_metricas?: {
+    rentabilidad_acumulada: number;
+    retorno_anualizado: number;
+    volatilidad_anualizada: number;
+    sharpe_ratio: number;
+    sortino_ratio: number;
+    calmar_ratio: number;
+    max_drawdown: number;
+    beta: number;
+  };
   serie_temporal: { fecha: string; valor_cartera: number; valor_benchmark: number }[];
   crisis: Record<string, CrisisItem>;
   descomposicion?: DescomposicionRetorno;

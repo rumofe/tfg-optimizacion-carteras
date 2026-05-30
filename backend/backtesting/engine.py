@@ -323,6 +323,18 @@ class BacktestEngine:
             "beta": metricas["beta"],
             "benchmark_rentabilidad": benchmark["rentabilidad_acumulada"],
             "benchmark_retorno_anualizado": benchmark["retorno_anualizado"],
+            # Métricas completas del benchmark (SPY) para comparar en cada métrica.
+            # La beta del benchmark consigo mismo es 1.0 por definición.
+            "benchmark_metricas": {
+                "rentabilidad_acumulada":  benchmark["rentabilidad_acumulada"],
+                "retorno_anualizado":      benchmark["retorno_anualizado"],
+                "volatilidad_anualizada":  benchmark["volatilidad_anualizada"],
+                "sharpe_ratio":            benchmark["sharpe_ratio"],
+                "sortino_ratio":           benchmark["sortino_ratio"],
+                "calmar_ratio":            benchmark["calmar_ratio"],
+                "max_drawdown":            benchmark["max_drawdown"],
+                "beta":                    1.0,
+            },
             "serie_temporal": serie_temporal,
             "descomposicion": {
                 "rentabilidad_precio": round(rent_precio_acum, 4),
