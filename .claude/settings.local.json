@@ -55,7 +55,15 @@
       "Bash(cp -r \"C:\\\\Users\\\\rumofe\\\\Downloads\\\\_etsi_extract\\\\template\" memoria_uma_etsi/)",
       "Bash(cp \"C:\\\\Users\\\\rumofe\\\\Downloads\\\\_etsi_extract\\\\references.bib\" memoria_uma_etsi/references_template.bib)",
       "Bash(grep -niE \"babel|language|spanish|\\\\\\\\\\\\\\\\selectlanguage|csquotes\" template-TFGspanish-uma.sty)",
-      "Bash(xelatex --version)"
+      "Bash(xelatex --version)",
+      "Bash(git log *)",
+      "Bash([ -f \"frontend/src/$f\" ])",
+      "Bash([ -f \"frontend/$f\" ])",
+      "Bash(./venv/Scripts/python.exe -m pyflakes .)",
+      "Bash(echo \"EXIT=$?\")",
+      "PowerShell(cd C:\\\\TFG\\\\tfg-optimizacion-carteras\\\\backend; if \\(Test-Path .\\\\venv\\\\Scripts\\\\python.exe\\) { $py = \".\\\\venv\\\\Scripts\\\\python.exe\" } else { $py = \"python\" }; & $py -m pyflakes . 2>&1 | Select-String -NotMatch \"venv\" | Select-Object -First 50)",
+      "Bash(ls backend/_analyze_unused.py)",
+      "Bash(find . -name \"requirements*.txt\" -not -path \"*/venv/*\")"
     ]
   }
 }
