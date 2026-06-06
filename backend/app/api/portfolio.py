@@ -58,11 +58,17 @@ class ActualizarCarteraRequest(BaseModel):
 # --- Endpoints ---
 
 @router.post("/optimize")
-def optimize_portfolio(payload: OptimizeRequest):
+def optimize_portfolio(
+    payload: OptimizeRequest,
+    current_user: Usuario = Depends(get_current_user),
+):
     """
     Calcula la cartera óptima (máximo Sharpe Ratio) para los tickers dados
     e incluye la Frontera Eficiente de Markowitz completa.
-    No requiere autenticación.
+
+    Requiere autenticación: es un endpoint de cómputo intensivo (descarga de
+    datos de mercado + optimización SLSQP multi-start), por lo que se protege
+    con JWT para evitar el abuso de recursos si el servicio se expone a Internet.
     """
     if len(payload.tickers) < 2:
         raise HTTPException(
@@ -86,12 +92,18 @@ def optimize_portfolio(payload: OptimizeRequest):
 
 
 @router.post("/monte-carlo")
-def proyeccion_monte_carlo(payload: MonteCarloRequest):
+def proyeccion_monte_carlo(
+    payload: MonteCarloRequest,
+    current_user: Usuario = Depends(get_current_user),
+):
     """
     Simulación Monte Carlo (bootstrap histórico) de la trayectoria futura
     de la cartera. Devuelve percentiles temporales 5/25/50/75/95,
     distribución del valor final y probabilidades clave (pérdida, doblar,
-    triplicar). No requiere autenticación.
+    triplicar).
+
+    Requiere autenticación: genera miles de trayectorias y descarga histórico,
+    por lo que se protege con JWT frente al abuso de recursos.
     """
     if len(payload.tickers) < 1:
         raise HTTPException(
@@ -122,7 +134,10 @@ def proyeccion_monte_carlo(payload: MonteCarloRequest):
 
 
 @router.post("/fiscalidad")
-def analisis_fiscal(payload: FiscalidadRequest):
+def analisis_fiscal(
+    payload: FiscalidadRequest,
+    current_user: Usuario = Depends(get_current_user),
+):
     """
     Análisis del impacto fiscal español (IRPF base del ahorro) sobre la
     rentabilidad esperada, comparando dos vehículos de inversión:
@@ -131,7 +146,7 @@ def analisis_fiscal(payload: FiscalidadRequest):
 
     Devuelve valor final neto en ambos casos, IRPF total, y el ahorro fiscal
     derivado del diferimiento. Simplificación didáctica, no es asesoramiento
-    fiscal.
+    fiscal. Requiere autenticación (endpoint de cómputo protegido con JWT).
     """
     try:
         return comparar_fiscal(

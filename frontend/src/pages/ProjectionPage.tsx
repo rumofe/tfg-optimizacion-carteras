@@ -92,6 +92,13 @@ export default function ProjectionPage() {
     }));
   }, [result]);
 
+  // Datos del fan chart: añadimos `banda90` como par [p5, p95] para que el área
+  // dibuje el rango real (90 % central) en lugar de apilar áreas sobre el fondo.
+  const bandaData = (result?.trayectoria ?? []).map((d) => ({
+    ...d,
+    banda90: [d.p5, d.p95] as [number, number],
+  }));
+
   return (
     <div>
       {/* Header */}
@@ -390,11 +397,12 @@ export default function ProjectionPage() {
               Trayectoria proyectada · banda de incertidumbre
             </h3>
             <p style={{ color: 'var(--text-2)', fontSize: '12px', margin: '0 0 16px' }}>
-              La banda gris clara cubre el 90 % central de los escenarios (p5-p95).
-              La gris oscura el 50 % central (p25-p75). La línea sólida es la mediana.
+              La banda azul cubre el rango probable de tu cartera. La línea azul central
+              es el resultado más probable (mediana); las líneas verde y roja son los
+              escenarios optimista (mejor 5 %) y pesimista (peor 5 %).
             </p>
             <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={result.trayectoria} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+              <AreaChart data={bandaData} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="año" type="number"
@@ -407,23 +415,21 @@ export default function ProjectionPage() {
                   tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)} K€` : `${v.toFixed(0)}€`}
                 />
                 <Tooltip content={<FanTooltip />} />
-                {/* Banda 5-95 (área amplia) */}
-                <Area type="monotone" dataKey="p95" stroke="none" fill="var(--accent)" fillOpacity={0.10} stackId="1a" />
-                <Area type="monotone" dataKey="p5"  stroke="none" fill="var(--bg)"     fillOpacity={1}    stackId="1a" />
-                {/* Banda 25-75 (área central, más opaca) */}
-                <Area type="monotone" dataKey="p75" stroke="none" fill="var(--accent)" fillOpacity={0.22} stackId="1b" />
-                <Area type="monotone" dataKey="p25" stroke="none" fill="var(--bg)"     fillOpacity={1}    stackId="1b" />
-                {/* Mediana */}
-                <Line type="monotone" dataKey="p50" stroke="var(--accent)" dot={false} strokeWidth={2.5} />
+                {/* Banda 90 % (p5-p95) como rango [min,max]: una sola área translúcida */}
+                <Area type="monotone" dataKey="banda90" stroke="none" fill="var(--accent)" fillOpacity={0.16} />
+                {/* Tres líneas claras y diferenciadas */}
+                <Line type="monotone" dataKey="p95" stroke="var(--green)" dot={false} strokeWidth={2} strokeDasharray="5 4" />
+                <Line type="monotone" dataKey="p50" stroke="var(--accent)" dot={false} strokeWidth={3} />
+                <Line type="monotone" dataKey="p5"  stroke="var(--red)" dot={false} strokeWidth={2} strokeDasharray="5 4" />
                 {/* Línea de referencia: capital inicial */}
                 <ReferenceLine y={result.parametros.capital_inicial} stroke="var(--text-3)" strokeDasharray="4 4"
                   label={{ value: 'Capital inicial', position: 'right', fill: 'var(--text-3)', fontSize: 10 }} />
               </AreaChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: '20px', marginTop: '8px', fontSize: '11px', flexWrap: 'wrap' }}>
-              <span style={{ color: 'var(--accent)' }}>● Mediana (p50)</span>
-              <span style={{ color: 'var(--text-2)' }}>▮ Banda 25-75 % (50 % central)</span>
-              <span style={{ color: 'var(--text-3)' }}>▮ Banda 5-95 % (90 % central)</span>
+              <span style={{ color: 'var(--green)' }}>--- Optimista (mejor 5 %)</span>
+              <span style={{ color: 'var(--accent)' }}>● Mediana (resultado más probable)</span>
+              <span style={{ color: 'var(--red)' }}>--- Pesimista (peor 5 %)</span>
               <span style={{ color: 'var(--text-3)' }}>--- Capital inicial</span>
             </div>
           </div>

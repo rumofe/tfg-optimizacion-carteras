@@ -147,6 +147,11 @@ export default function OptimizerPage() {
         .map(([name, value]) => ({ name, value: parseFloat((value * 100).toFixed(2)) }))
     : [];
   const sortedPesos = result ? Object.entries(result.pesos).sort(([, a], [, b]) => b - a) : [];
+  // Color fijo por ticker: cada activo conserva el mismo color en el donut y en
+  // la tabla, evitando que la leyenda y la asignación muestren colores cruzados.
+  const colorByTicker: Record<string, string> = Object.fromEntries(
+    Object.keys(result?.pesos ?? {}).map((ticker, i) => [ticker, COLORS[i % COLORS.length]]),
+  );
   const fronteraData = result?.frontera ?? [];
   const optimalPoint = result
     ? { volatilidad: result.volatilidad * 100, retorno: result.retorno_esperado * 100 }
@@ -569,7 +574,7 @@ export default function OptimizerPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie data={pieData} cx="50%" cy="50%" outerRadius={95} innerRadius={40} dataKey="value" strokeWidth={0}>
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    {pieData.map((d) => <Cell key={d.name} fill={colorByTicker[d.name]} />)}
                   </Pie>
                   <Tooltip
                     contentStyle={{ backgroundColor: 'var(--raised)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
@@ -594,10 +599,10 @@ export default function OptimizerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedPesos.map(([ticker, peso], i) => (
+                  {sortedPesos.map(([ticker, peso]) => (
                     <tr key={ticker}>
                       <td style={{ padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
-                        <span style={{ color: COLORS[i % COLORS.length], fontWeight: 700, fontSize: '14px' }}>{ticker}</span>
+                        <span style={{ color: colorByTicker[ticker], fontWeight: 700, fontSize: '14px' }}>{ticker}</span>
                       </td>
                       <td style={{ color: 'var(--text)', padding: '11px 0', borderBottom: '1px solid var(--border)', fontSize: '14px' }}>
                         {pct(peso)}

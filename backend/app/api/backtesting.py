@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
+from app.api.deps import get_current_user
+from app.db.models import Usuario
 from backtesting.engine import BacktestEngine
 from etl.market_data import DataSourceError
 
@@ -35,11 +37,17 @@ class BacktestRequest(BaseModel):
 
 
 @router.post("/run")
-def run_backtest(payload: BacktestRequest):
+def run_backtest(
+    payload: BacktestRequest,
+    current_user: Usuario = Depends(get_current_user),
+):
     """
     Ejecuta el backtest con pesos fijos para los tickers dados y devuelve:
     - Métricas globales: rentabilidad, volatilidad, Sharpe, Sortino, Calmar, Beta, Max Drawdown
     - Análisis por periodos de crisis históricos (COVID, Lehman, Corrección 2022)
+
+    Requiere autenticación: la simulación descarga histórico y procesa la serie
+    completa día a día, por lo que se protege con JWT frente al abuso de recursos.
     """
     try:
         engine = BacktestEngine(
