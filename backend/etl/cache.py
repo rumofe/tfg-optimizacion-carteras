@@ -80,12 +80,30 @@ def ttl_cache(cache: TTLCache):
     """
     Decorador que envuelve una función pura y la cachea por (args, kwargs).
 
+    Incorpora un bloqueo por clave (single-flight) para evitar el efecto
+    "cache stampede": si N peticiones de la misma clave llegan a la vez con la
+    caché vacía, solo la primera ejecuta la función (descarga real); las N-1
+    restantes esperan en el lock de esa clave y, al despertar, leen el valor ya
+    cacheado en lugar de volver a llamar a la API externa.
+
     Uso:
         prices_cache = TTLCache(ttl_seconds=21600)
         @ttl_cache(prices_cache)
         def get_historical_prices(ticker, period, start, end):
             ...
     """
+    # Un lock por clave + un lock global que protege el diccionario de locks.
+    key_locks: dict[Any, threading.Lock] = {}
+    locks_guard = threading.Lock()
+
+    def _lock_for(key: Any) -> threading.Lock:
+        with locks_guard:
+            lock = key_locks.get(key)
+            if lock is None:
+                lock = threading.Lock()
+                key_locks[key] = lock
+            return lock
+
     def decorator(fn: Callable):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -94,13 +112,23 @@ def ttl_cache(cache: TTLCache):
             if args and hasattr(args[0], "__dict__") and not isinstance(args[0], (str, int, float, tuple)):
                 key_args = args[1:]
             key = (fn.__name__, key_args, tuple(sorted(kwargs.items())))
+
+            # Primer intento sin bloquear: la mayoría de las peticiones son HIT.
             cached = cache.get(key)
             if cached is not None:
                 logger.debug("[cache HIT] %s", key)
                 return cached
-            result = fn(*args, **kwargs)
-            cache.set(key, result)
-            return result
+
+            # MISS: tomamos el lock de esta clave. Solo un hilo descarga; el
+            # resto espera aquí y, al entrar, encuentra el valor ya cacheado.
+            with _lock_for(key):
+                cached = cache.get(key)          # doble comprobación
+                if cached is not None:
+                    logger.debug("[cache HIT tras espera] %s", key)
+                    return cached
+                result = fn(*args, **kwargs)
+                cache.set(key, result)
+                return result
         wrapper.cache = cache  # type: ignore
         return wrapper
     return decorator
