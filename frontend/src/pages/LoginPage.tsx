@@ -48,8 +48,14 @@ export default function LoginPage() {
       localStorage.setItem('token', data.access_token);
       navigate('/dashboard');
     } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(typeof detail === 'string' ? detail : 'Error al conectar con el servidor');
+      if (err?.response) {
+        // El servidor respondió con un error (p. ej. 400 "Email ya registrado").
+        const detail = err.response.data?.detail;
+        setError(typeof detail === 'string' ? detail : 'No se pudo completar la operación.');
+      } else {
+        // No hubo respuesta: red caída o el servidor reactivándose tras inactividad.
+        setError('No se pudo contactar con el servidor. Puede estar reactivándose; espera unos segundos y reinténtalo.');
+      }
     } finally {
       setLoading(false);
     }
