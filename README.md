@@ -16,7 +16,7 @@ Modern portfolio optimization (Markowitz, Risk Parity, CVaR), robo-advisor-style
 
 **Bachelor's Thesis (TFG) · Computer Engineering · University of Málaga · 2026**
 
-### 🔗 [**Live demo →**](https://tfg-optimizacion-carteras-nine.vercel.app)
+### 🔗 [**Live demo →**](https://rumofe-alphascope.vercel.app)
 
 <sub>The demo runs on free-tier hosting; the first request after a while may take ~30–50 s to wake up.</sub>
 
