@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📊 PortfolioLab
+# 📊 AlphaScope
 
 ### Web platform for portfolio analysis and optimization
 
@@ -25,15 +25,9 @@ Modern portfolio optimization (Markowitz, Risk Parity, CVaR), robo-advisor-style
 ---
 
 > ### ⚠️ Disclaimer
-> **PortfolioLab is an academic project built for educational and technical-demonstration purposes only.** It does **not** constitute financial, tax, or investment advice, nor a recommendation to buy or sell any asset. All calculations rely on third-party historical data and simplified models; past performance does not guarantee future results. The author accepts no liability for decisions made using this tool. Always consult a licensed financial advisor before investing.
+> **AlphaScope is an academic project built for educational and technical-demonstration purposes only.** It does **not** constitute financial, tax, or investment advice, nor a recommendation to buy or sell any asset. All calculations rely on third-party historical data and simplified models; past performance does not guarantee future results. The author accepts no liability for decisions made using this tool. Always consult a licensed financial advisor before investing.
 
 ---
-
-<!--
-📸 "HERO" SCREENSHOT — add a wide image of the Optimizer or the X-Ray here.
-Save it to docs/screenshots/hero.png and uncomment the line below:
--->
-<!-- ![PortfolioLab](docs/screenshots/hero.png) -->
 
 ## ✨ Features
 

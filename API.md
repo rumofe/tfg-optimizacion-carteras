@@ -1,4 +1,4 @@
-# API — PortfolioLab
+# API — AlphaScope
 
 Referencia de la API REST del backend (FastAPI). Base URL en desarrollo: `http://127.0.0.1:8000`. Documentación interactiva (Swagger) en `/docs`.
 
