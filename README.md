@@ -1,10 +1,37 @@
-# PortfolioLab — Plataforma de análisis y optimización de carteras
+<div align="center">
 
-Trabajo de Fin de Grado · Ingeniería Informática · UMA 2026
+# 📊 PortfolioLab
 
-Aplicación web full-stack que combina **optimización moderna de carteras** (Markowitz, Risk Parity, CVaR), **planificación financiera personal** estilo robo-advisor y **análisis visual estilo Morningstar** sobre datos reales de mercado. Diseñada para acercar al inversor particular herramientas de soporte a la decisión habitualmente reservadas a gestores profesionales.
+### Plataforma web de análisis y optimización de carteras de inversión
+
+Optimización moderna de carteras (Markowitz, Risk Parity, CVaR), planificación financiera estilo *robo-advisor* y análisis visual estilo Morningstar sobre datos reales de mercado.
+
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-68%20passing-2DD4A7)
+![License](https://img.shields.io/badge/licencia-uso%20acad%C3%A9mico-blue)
+
+**Trabajo de Fin de Grado · Ingeniería Informática · Universidad de Málaga · 2026**
+
+<!-- 🔗 Demo en vivo: https://TU-DEMO.vercel.app  (añádelo cuando despliegues) -->
+
+</div>
 
 ---
+
+> ### ⚠️ Aviso importante
+> **PortfolioLab es un proyecto académico con fines exclusivamente educativos y de demostración técnica.** No constituye asesoramiento financiero, fiscal ni de inversión, ni una recomendación de compra o venta de ningún activo. Los cálculos se basan en datos históricos de terceros y en modelos simplificados; los resultados pasados no garantizan rendimientos futuros. El autor no se hace responsable de decisiones tomadas a partir de esta herramienta. Consulta siempre a un asesor financiero acreditado antes de invertir.
+
+---
+
+<!--
+📸 CAPTURA "HERO" — pon aquí una imagen ancha del Optimizador o el X-Ray.
+Guárdala en docs/screenshots/hero.png y descomenta la línea de abajo:
+-->
+<!-- ![PortfolioLab](docs/screenshots/hero.png) -->
 
 ## ✨ Funcionalidades
 
@@ -68,6 +95,25 @@ Filtradas según el perfil del usuario detectado en el Planificador, con toggle 
 
 ---
 
+## 📸 Capturas
+
+<!--
+Añade capturas reales de la app aquí — es lo que más engancha a quien mira el repo.
+Recomendadas (guárdalas en docs/screenshots/ y descomenta):
+
+| Optimizador | X-Ray |
+|:---:|:---:|
+| ![Optimizador](docs/screenshots/optimizer.png) | ![X-Ray](docs/screenshots/xray.png) |
+
+| Backtesting | Proyección Monte Carlo |
+|:---:|:---:|
+| ![Backtesting](docs/screenshots/backtest.png) | ![Monte Carlo](docs/screenshots/montecarlo.png) |
+-->
+
+> _Capturas pendientes de añadir en `docs/screenshots/`._
+
+---
+
 ## 💻 Stack tecnológico
 
 | Capa | Tecnologías |
@@ -77,7 +123,9 @@ Filtradas según el perfil del usuario detectado en el Planificador, con toggle 
 | **Datos de mercado** | yfinance (primario) + Alpha Vantage (fallback) con caché TTL en memoria |
 | **Base de datos** | PostgreSQL 15 |
 | **Autenticación** | JWT + bcrypt (OAuth2PasswordBearer) |
-| **Infraestructura** | Docker Compose · scripts de migración Alembic |
+| **Infraestructura** | Docker Compose · migraciones Alembic |
+
+📄 **Referencia completa de la API REST:** [`API.md`](API.md) · Documentación interactiva (Swagger) en `/docs`.
 
 ---
 
@@ -99,8 +147,8 @@ tfg-optimizacion-carteras/
 │   │   └── engine.py               # Backtest con rebalanceo + comisiones + análisis de crisis
 │   ├── etl/
 │   │   ├── market_data.py          # Conector yfinance + Alpha Vantage fallback
-│   │   └── cache.py                # TTL cache thread-safe (LRU)
-│   └── tests/                      # 63 tests unitarios (auth, portfolio, optimizer)
+│   │   └── cache.py                # Caché TTL thread-safe con lock single-flight por clave
+│   └── tests/                      # 68 tests unitarios (auth, portfolio, optimizer, caché)
 └── frontend/src/
     ├── pages/
     │   ├── PlannerPage.tsx         # Planificador financiero
@@ -147,10 +195,10 @@ La primera vez Docker construirá las imágenes (~3-5 min). Las migraciones Alem
 Crea `.env` en la raíz a partir de `.env.example`. Variables clave:
 
 ```
-POSTGRES_USER=rumofe
+POSTGRES_USER=tu_usuario
 POSTGRES_PASSWORD=<elige-una-password>
 POSTGRES_DB=tfg_carteras
-DATABASE_URL=postgresql://rumofe:<password>@db:5432/tfg_carteras
+DATABASE_URL=postgresql://tu_usuario:<password>@db:5432/tfg_carteras
 
 SECRET_KEY=<genera-una-aleatoria-de-64-chars>
 ACCESS_TOKEN_EXPIRE_MINUTES=480
@@ -158,7 +206,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=480
 ALPHA_VANTAGE_API_KEY=<tu-clave-gratis-en-alphavantage.co>
 ```
 
-> ⚠️ **No commitear nunca el `.env` real.** El `.gitignore` ya lo excluye.
+> ⚠️ **No commitear nunca el `.env` real.** El `.gitignore` ya lo excluye. Usa credenciales propias, distintas de las de desarrollo.
 
 ### Setup sin Docker (desarrollo local)
 
@@ -182,7 +230,7 @@ npm run dev
 ## 🧪 Tests
 
 ```bash
-# Backend (63 tests: auth, portfolio CRUD, security, Markowitz, Risk Parity)
+# Backend (68 tests: auth, portfolio CRUD, seguridad, Markowitz, Risk Parity, caché concurrente)
 cd backend
 pytest -q
 
@@ -199,10 +247,11 @@ npm run build
 - **SLSQP con multi-start** (1 punto equiponderado + 5-20 puntos Dirichlet aleatorios con semilla fija) para evitar mínimos locales.
 - **Fallback** a mínima varianza global si ninguna iteración converge bajo la restricción de volatilidad.
 
-### Datos de mercado
+### Datos de mercado y concurrencia
 - **`auto_adjust=True`** en yfinance → los precios devueltos son **total return** (split + dividend adjusted), validado contra fuentes públicas.
 - **Caché TTL** en memoria (6 h precios, 1 h info, 15 min búsqueda) con métricas observables vía `/assets/cache-stats`.
-- **Bootstrap histórico** (no MVN) para Monte Carlo: preserva colas gordas, asimetría y autocorrelaciones parciales presentes en los datos reales.
+- **Lock single-flight por clave** para evitar el *cache stampede*: cuando N peticiones concurrentes piden el mismo activo con la caché fría, solo una descarga de la API externa; las demás esperan y leen el resultado ya cacheado. Verificado con un test de 10 hilos concurrentes que confirma una única descarga real.
+- **Bootstrap histórico** (no MVN) para Monte Carlo: preserva colas gordas, asimetría y autocorrelaciones parciales presentes en los datos reales, con corrección del sesgo del *drift* en espacio logarítmico.
 
 ### Modelo financiero
 - **Regla del 110** modulada por perfil (±10pp) y horizonte (cap por plazo) para asset allocation recomendada.
@@ -223,6 +272,20 @@ npm run build
 
 ---
 
-## 📄 Licencia
+## 👤 Autor
 
-Trabajo Fin de Grado — Universidad de Málaga 2026. Uso académico.
+**Rubén Moreno Fernández**
+Grado en Ingeniería Informática — Mención en Sistemas de Información
+Universidad de Málaga, 2026
+
+<!-- Añade tus enlaces para el CV:
+[LinkedIn](https://linkedin.com/in/tu-perfil) · [GitHub](https://github.com/tu-usuario)
+-->
+
+---
+
+## 📄 Licencia y descargo de responsabilidad
+
+Trabajo Fin de Grado — Universidad de Málaga, 2026. **Uso académico.**
+
+Este software se distribuye "tal cual", sin garantía de ningún tipo. Es un proyecto educativo y **no debe utilizarse como base para decisiones reales de inversión**. No constituye asesoramiento financiero, fiscal ni legal. El módulo de fiscalidad es una simplificación didáctica del IRPF español y no sustituye el asesoramiento de un profesional. Los datos de mercado proceden de proveedores externos (Yahoo Finance, Alpha Vantage) y pueden contener errores, retrasos o inexactitudes. El autor declina toda responsabilidad por el uso que terceros hagan de esta herramienta.

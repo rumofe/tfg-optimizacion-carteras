@@ -36,3 +36,4 @@ data/*.pdf
 .claude
 docs/
 PortfolioLab_Resumen_Tecnico.docx
+reset_pg_password.ps1
