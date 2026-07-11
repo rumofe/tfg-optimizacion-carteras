@@ -16,7 +16,9 @@ Modern portfolio optimization (Markowitz, Risk Parity, CVaR), robo-advisor-style
 
 **Bachelor's Thesis (TFG) · Computer Engineering · University of Málaga · 2026**
 
-<!-- 🔗 Live demo: https://YOUR-DEMO.vercel.app  (add this once deployed) -->
+### 🔗 [**Live demo →**](https://tfg-optimizacion-carteras-nine.vercel.app)
+
+<sub>The demo runs on free-tier hosting; the first request after a while may take ~30–50 s to wake up.</sub>
 
 </div>
 
@@ -92,25 +94,6 @@ Filtered by the user's profile detected in the Planner, with a "Show all" toggle
 - Fixed side navigation with 6 modules: Planner → Optimizer → X-Ray → Backtesting → Projection → Comparator.
 - JWT auth with auto-logout on expiration.
 - In-place editing of saved-portfolio weights with automatic normalization.
-
----
-
-## 📸 Screenshots
-
-<!--
-Add real screenshots of the app here — this is what draws people into the repo.
-Recommended (save them to docs/screenshots/ and uncomment):
-
-| Optimizer | X-Ray |
-|:---:|:---:|
-| ![Optimizer](docs/screenshots/optimizer.png) | ![X-Ray](docs/screenshots/xray.png) |
-
-| Backtesting | Monte Carlo projection |
-|:---:|:---:|
-| ![Backtesting](docs/screenshots/backtest.png) | ![Monte Carlo](docs/screenshots/montecarlo.png) |
--->
-
-> _Screenshots to be added under `docs/screenshots/`._
 
 ---
 
