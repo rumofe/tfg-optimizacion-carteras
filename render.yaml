@@ -1,0 +1,27 @@
+# Render Blueprint — backend API (FastAPI)
+# Deploy: https://dashboard.render.com  → New → Blueprint → connect this repo.
+# The database (DATABASE_URL) and ALPHA_VANTAGE_API_KEY are set manually in the
+# dashboard (marked sync:false). SECRET_KEY is auto-generated.
+services:
+  - type: web
+    name: portfoliolab-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Tables are created on startup (Base.metadata.create_all in app.main).
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true          # Render generates a strong random value
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: YFINANCE_ENABLED
+        value: "true"
+      - key: DATABASE_URL
+        sync: false                   # paste your Postgres URL in the dashboard
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false                   # paste your free Alpha Vantage key

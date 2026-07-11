@@ -2,9 +2,9 @@
 
 # 📊 PortfolioLab
 
-### Plataforma web de análisis y optimización de carteras de inversión
+### Web platform for portfolio analysis and optimization
 
-Optimización moderna de carteras (Markowitz, Risk Parity, CVaR), planificación financiera estilo *robo-advisor* y análisis visual estilo Morningstar sobre datos reales de mercado.
+Modern portfolio optimization (Markowitz, Risk Parity, CVaR), robo-advisor-style financial planning, and Morningstar-style visual analytics on real market data.
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
@@ -12,214 +12,214 @@ Optimización moderna de carteras (Markowitz, Risk Parity, CVaR), planificación
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-68%20passing-2DD4A7)
-![License](https://img.shields.io/badge/licencia-uso%20acad%C3%A9mico-blue)
+![License](https://img.shields.io/badge/license-academic%20use-blue)
 
-**Trabajo de Fin de Grado · Ingeniería Informática · Universidad de Málaga · 2026**
+**Bachelor's Thesis (TFG) · Computer Engineering · University of Málaga · 2026**
 
-<!-- 🔗 Demo en vivo: https://TU-DEMO.vercel.app  (añádelo cuando despliegues) -->
+<!-- 🔗 Live demo: https://YOUR-DEMO.vercel.app  (add this once deployed) -->
 
 </div>
 
 ---
 
-> ### ⚠️ Aviso importante
-> **PortfolioLab es un proyecto académico con fines exclusivamente educativos y de demostración técnica.** No constituye asesoramiento financiero, fiscal ni de inversión, ni una recomendación de compra o venta de ningún activo. Los cálculos se basan en datos históricos de terceros y en modelos simplificados; los resultados pasados no garantizan rendimientos futuros. El autor no se hace responsable de decisiones tomadas a partir de esta herramienta. Consulta siempre a un asesor financiero acreditado antes de invertir.
+> ### ⚠️ Disclaimer
+> **PortfolioLab is an academic project built for educational and technical-demonstration purposes only.** It does **not** constitute financial, tax, or investment advice, nor a recommendation to buy or sell any asset. All calculations rely on third-party historical data and simplified models; past performance does not guarantee future results. The author accepts no liability for decisions made using this tool. Always consult a licensed financial advisor before investing.
 
 ---
 
 <!--
-📸 CAPTURA "HERO" — pon aquí una imagen ancha del Optimizador o el X-Ray.
-Guárdala en docs/screenshots/hero.png y descomenta la línea de abajo:
+📸 "HERO" SCREENSHOT — add a wide image of the Optimizer or the X-Ray here.
+Save it to docs/screenshots/hero.png and uncomment the line below:
 -->
 <!-- ![PortfolioLab](docs/screenshots/hero.png) -->
 
-## ✨ Funcionalidades
+## ✨ Features
 
-### 🎯 Optimizador con 5 métodos
-| Método | Función objetivo | Cuándo usarlo |
+### 🎯 Optimizer with 5 methods
+| Method | Objective function | When to use it |
 |---|---|---|
-| **Sharpe (Markowitz)** | Maximiza retorno/riesgo con restricción de volatilidad | Cartera "óptima" clásica |
-| **Mínima varianza** | Minimiza la volatilidad global | Inversor muy conservador |
-| **Risk Parity (ERC)** | Iguala la contribución al riesgo de cada activo | Diversificación efectiva (Maillard-Roncalli 2010) |
-| **Mínimo CVaR** | Minimiza la pérdida media en el peor 5 % de días | Aversión a pérdidas de cola (Rockafellar-Uryasev 2000) |
-| **Equal Weight (1/N)** | Pesos iguales, sin optimización | Baseline naive (DeMiguel et al. 2009) |
+| **Sharpe (Markowitz)** | Maximizes return/risk under a volatility constraint | Classic "optimal" portfolio |
+| **Minimum variance** | Minimizes overall volatility | Very conservative investor |
+| **Risk Parity (ERC)** | Equalizes each asset's risk contribution | Effective diversification (Maillard-Roncalli 2010) |
+| **Minimum CVaR** | Minimizes the mean loss in the worst 5 % of days | Tail-loss aversion (Rockafellar-Uryasev 2000) |
+| **Equal Weight (1/N)** | Equal weights, no optimization | Naive baseline (DeMiguel et al. 2009) |
 
-Sobre el resultado se calculan **6 métricas comparables**: Sharpe, Diversification Ratio (Choueifaty), HHI de concentración, activos efectivos (1/HHI), CVaR 95 % y yield ponderado de dividendos.
+For each result, **6 comparable metrics** are computed: Sharpe, Diversification Ratio (Choueifaty), concentration HHI, effective number of assets (1/HHI), 95 % CVaR, and dividend-weighted yield.
 
-Visualizaciones: **frontera eficiente** de Markowitz (50 puntos) + **frontera de Pareto Sharpe-vs-Sortino** (escalarización θ).
+Visualizations: Markowitz **efficient frontier** (50 points) + **Sharpe-vs-Sortino Pareto frontier** (θ scalarization).
 
-### 📋 Planificador financiero (modo robo-advisor)
-- Inputs: liquidez, gastos mensuales, edad, horizonte, perfil de riesgo, fondo de emergencia deseado.
-- Outputs: capital invertible, asset allocation sugerida (cash/bonds/equity/RE/commodities) usando **regla del 110** modulada por perfil y horizonte.
-- Botón "Aplicar al Optimizador" que pre-rellena capital y muestra la asignación recomendada.
+### 📋 Financial planner (robo-advisor mode)
+- Inputs: cash, monthly expenses, age, horizon, risk profile, desired emergency fund.
+- Outputs: investable capital, suggested asset allocation (cash/bonds/equity/RE/commodities) using the **"rule of 110"** modulated by profile and horizon.
+- "Apply to Optimizer" button that pre-fills capital and shows the recommended allocation.
 
-### 📈 Backtesting histórico
-- 8 métricas: rentabilidad acumulada, retorno anualizado, volatilidad, **Sharpe, Sortino, Calmar**, máximo drawdown, beta vs SPY.
-- Periodos: YTD, 1y, 3y, 5y, 10y, 20y, max + **rango de fechas personalizado**.
-- **Análisis de crisis**: COVID 2020, Lehman 2008-09, corrección 2022 — métricas separadas para cada periodo.
-- **Rebalanceo periódico** (mensual / trimestral / semestral / anual) con simulación día a día.
-- **Comisiones realistas** modeladas con turnover (broker low-cost ≈ 0.1 %, banca tradicional ≈ 0.5 %).
-- **Descomposición precio vs dividendos**: muestra qué porcentaje del retorno viene de revalorización y cuánto de dividendos reinvertidos, con ingresos anuales en €.
+### 📈 Historical backtesting
+- 8 metrics: cumulative return, annualized return, volatility, **Sharpe, Sortino, Calmar**, maximum drawdown, beta vs SPY.
+- Periods: YTD, 1y, 3y, 5y, 10y, 20y, max + **custom date range**.
+- **Crisis analysis**: COVID 2020, Lehman 2008-09, 2022 correction — separate metrics for each period.
+- **Periodic rebalancing** (monthly / quarterly / semiannual / annual) with day-by-day simulation.
+- **Realistic commissions** modeled via turnover (low-cost broker ≈ 0.1 %, traditional bank ≈ 0.5 %).
+- **Price vs dividend decomposition**: shows what share of the return comes from appreciation and how much from reinvested dividends, with annual income in €.
 
-### 🔬 X-Ray (análisis de cartera)
-- **Distribución por clase de activo** (Equity / Bonds / Real Estate / Commodities / Cash / Alternatives) con barra apilada.
-- **Sectores** (donut + barras).
-- **Geografía**: mapa coroplético del mundo con tooltip por país.
-- **Style Box Morningstar** 3×3 (Capitalización × Estilo Value/Blend/Growth).
-- **Distribuciones** por capitalización (Large/Mid/Small) y estilo.
-- **Tipo de activo** (Cíclico/Sensible/Defensivo) según clasificación Morningstar.
-- **Análisis de dividendos**: yield ponderado, top contribuyentes, frecuencia de pago.
-- **Historial de versiones** (snapshots): timeline con diffs entre ediciones de cada cartera.
+### 🔬 X-Ray (portfolio analysis)
+- **Asset-class breakdown** (Equity / Bonds / Real Estate / Commodities / Cash / Alternatives) as a stacked bar.
+- **Sectors** (donut + bars).
+- **Geography**: world choropleth map with per-country tooltip.
+- **Morningstar Style Box** 3×3 (Market cap × Value/Blend/Growth style).
+- **Distributions** by market cap (Large/Mid/Small) and style.
+- **Asset type** (Cyclical/Sensitive/Defensive) following Morningstar's classification.
+- **Dividend analysis**: weighted yield, top contributors, payment frequency.
+- **Version history** (snapshots): timeline with diffs between edits of each portfolio.
 
-### 🎲 Proyección Monte Carlo
-- **Bootstrap histórico** (sortear con reemplazo retornos diarios reales) — preserva colas gordas y asimetría que la distribución normal borra.
-- 1 000 / 5 000 / 10 000 simulaciones × hasta 30 años (vectorizado en NumPy: 5 000×10y en ~270 ms).
-- Outputs: percentiles temporales 5/25/50/75/95, CAGR mediano + percentiles, distribución del valor final, **probabilidades clave** (pérdida, doblar, triplicar capital).
-- Visualización: **fan chart** con bandas de incertidumbre 50 % y 90 %, histograma logarítmico del valor final.
+### 🎲 Monte Carlo projection
+- **Historical bootstrap** (resampling real daily returns with replacement) — preserves the fat tails and skew that a normal distribution erases.
+- 1,000 / 5,000 / 10,000 simulations × up to 30 years (NumPy-vectorized: 5,000×10y in ~270 ms).
+- Outputs: temporal percentiles 5/25/50/75/95, median CAGR + percentiles, final-value distribution, **key probabilities** (loss, doubling, tripling capital).
+- Visualization: **fan chart** with 50 % and 90 % uncertainty bands, log-scaled histogram of the final value.
 
-### 🆚 Comparador
-Hasta 4 carteras guardadas en paralelo: equity curves superpuestas (base 100), tabla de 8 métricas comparada, composición lado a lado.
+### 🆚 Comparator
+Up to 4 saved portfolios side by side: overlaid equity curves (base 100), an 8-metric comparison table, and composition side by side.
 
-### 📚 Catálogo de plantillas (13 carteras famosas)
-- Conservadoras: 60/40 Global · Defensiva con dividendos · Bond Ladder · **Permanent Portfolio (Browne)** · Income Utilities & REITs.
-- Moderadas: Core S&P + Internacional · Sectores balanceados · Blue Chips US · **All Weather (Ray Dalio)** · Income con bonos + dividendos.
-- Agresivas: Mega-cap Tech · Disrupción · Semis + Emergentes.
+### 📚 Template catalog (13 well-known portfolios)
+- Conservative: Global 60/40 · Dividend defensive · Bond Ladder · **Permanent Portfolio (Browne)** · Income Utilities & REITs.
+- Moderate: Core S&P + International · Balanced sectors · US Blue Chips · **All Weather (Ray Dalio)** · Income with bonds + dividends.
+- Aggressive: Mega-cap Tech · Disruption · Semis + Emerging.
 
-Filtradas según el perfil del usuario detectado en el Planificador, con toggle "Ver todas".
+Filtered by the user's profile detected in the Planner, with a "Show all" toggle.
 
 ### 🎨 UX
-- 6 temas CSS intercambiables (Dark, Navy, Light, Rose, Esmeralda, Ámbar).
-- Sidebar fijo lateral con 6 módulos: Planificador → Optimizador → X-Ray → Backtesting → Proyección → Comparador.
-- Auth JWT con auto-logout en expiración.
-- Edición in-place de pesos de carteras guardadas con normalización automática.
+- 6 swappable CSS themes (Dark, Navy, Light, Rose, Emerald, Amber).
+- Fixed side navigation with 6 modules: Planner → Optimizer → X-Ray → Backtesting → Projection → Comparator.
+- JWT auth with auto-logout on expiration.
+- In-place editing of saved-portfolio weights with automatic normalization.
 
 ---
 
-## 📸 Capturas
+## 📸 Screenshots
 
 <!--
-Añade capturas reales de la app aquí — es lo que más engancha a quien mira el repo.
-Recomendadas (guárdalas en docs/screenshots/ y descomenta):
+Add real screenshots of the app here — this is what draws people into the repo.
+Recommended (save them to docs/screenshots/ and uncomment):
 
-| Optimizador | X-Ray |
+| Optimizer | X-Ray |
 |:---:|:---:|
-| ![Optimizador](docs/screenshots/optimizer.png) | ![X-Ray](docs/screenshots/xray.png) |
+| ![Optimizer](docs/screenshots/optimizer.png) | ![X-Ray](docs/screenshots/xray.png) |
 
-| Backtesting | Proyección Monte Carlo |
+| Backtesting | Monte Carlo projection |
 |:---:|:---:|
 | ![Backtesting](docs/screenshots/backtest.png) | ![Monte Carlo](docs/screenshots/montecarlo.png) |
 -->
 
-> _Capturas pendientes de añadir en `docs/screenshots/`._
+> _Screenshots to be added under `docs/screenshots/`._
 
 ---
 
-## 💻 Stack tecnológico
+## 💻 Tech stack
 
-| Capa | Tecnologías |
+| Layer | Technologies |
 |---|---|
 | **Frontend** | React 19 · TypeScript · Vite · React Router · Recharts · react-simple-maps · Axios |
 | **Backend** | Python 3.11 · FastAPI · SQLAlchemy · Alembic · NumPy · pandas · SciPy (SLSQP) |
-| **Datos de mercado** | yfinance (primario) + Alpha Vantage (fallback) con caché TTL en memoria |
-| **Base de datos** | PostgreSQL 15 |
-| **Autenticación** | JWT + bcrypt (OAuth2PasswordBearer) |
-| **Infraestructura** | Docker Compose · migraciones Alembic |
+| **Market data** | yfinance (primary) + Alpha Vantage (fallback) with in-memory TTL cache |
+| **Database** | PostgreSQL 15 |
+| **Authentication** | JWT + bcrypt (OAuth2PasswordBearer) |
+| **Infrastructure** | Docker Compose · Alembic migrations |
 
-📄 **Referencia completa de la API REST:** [`API.md`](API.md) · Documentación interactiva (Swagger) en `/docs`.
+📄 **Full REST API reference:** [`API.md`](API.md) · Interactive docs (Swagger) at `/docs`.
 
 ---
 
-## 🗂️ Estructura del proyecto
+## 🗂️ Project structure
 
 ```
 tfg-optimizacion-carteras/
 ├── backend/
-│   ├── alembic/                    # Migraciones de BD
+│   ├── alembic/                    # DB migrations
 │   ├── app/
-│   │   ├── api/                    # Routers FastAPI (auth, assets, portfolio, backtesting)
+│   │   ├── api/                    # FastAPI routers (auth, assets, portfolio, backtesting)
 │   │   ├── core/                   # Config + JWT + bcrypt
-│   │   ├── db/                     # Modelos SQLAlchemy + sesión
+│   │   ├── db/                     # SQLAlchemy models + session
 │   │   └── schemas/                # Pydantic
 │   ├── optimizer/
-│   │   ├── markowitz.py            # 5 métodos de optimización + frontera + Pareto
-│   │   └── montecarlo.py           # Bootstrap histórico + percentiles + histograma
+│   │   ├── markowitz.py            # 5 optimization methods + frontier + Pareto
+│   │   └── montecarlo.py           # Historical bootstrap + percentiles + histogram
 │   ├── backtesting/
-│   │   └── engine.py               # Backtest con rebalanceo + comisiones + análisis de crisis
+│   │   └── engine.py               # Backtest with rebalancing + commissions + crisis analysis
 │   ├── etl/
-│   │   ├── market_data.py          # Conector yfinance + Alpha Vantage fallback
-│   │   └── cache.py                # Caché TTL thread-safe con lock single-flight por clave
-│   └── tests/                      # 68 tests unitarios (auth, portfolio, optimizer, caché)
+│   │   ├── market_data.py          # yfinance + Alpha Vantage fallback connector
+│   │   └── cache.py                # Thread-safe TTL cache with per-key single-flight lock
+│   └── tests/                      # 68 unit tests (auth, portfolio, optimizer, cache)
 └── frontend/src/
     ├── pages/
-    │   ├── PlannerPage.tsx         # Planificador financiero
-    │   ├── OptimizerPage.tsx       # Optimizador (5 métodos + plantillas)
-    │   ├── XRayPage.tsx            # Análisis de cartera
-    │   ├── BacktestPage.tsx        # Backtest histórico
+    │   ├── PlannerPage.tsx         # Financial planner
+    │   ├── OptimizerPage.tsx       # Optimizer (5 methods + templates)
+    │   ├── XRayPage.tsx            # Portfolio analysis
+    │   ├── BacktestPage.tsx        # Historical backtest
     │   ├── ProjectionPage.tsx      # Monte Carlo
-    │   ├── ComparePage.tsx         # Comparador de carteras
-    │   ├── ProfilePage.tsx         # Cuenta + resumen del perfil
+    │   ├── ComparePage.tsx         # Portfolio comparator
+    │   ├── ProfilePage.tsx         # Account + profile summary
     │   └── LoginPage.tsx
     ├── components/                 # TickerSearch, EditPortfolioModal, PortfolioHistoryModal…
     ├── services/
-    │   ├── api.ts                  # Cliente axios + tipos compartidos
-    │   └── planner.ts              # Lógica pura del planificador (regla del 110)
-    └── portfolioTemplates.ts       # 13 plantillas de cartera
+    │   ├── api.ts                  # Axios client + shared types
+    │   └── planner.ts              # Pure planner logic (rule of 110)
+    └── portfolioTemplates.ts       # 13 portfolio templates
 ```
 
 ---
 
-## ⚡ Setup rápido (recomendado: Docker)
+## ⚡ Quick start (recommended: Docker)
 
-### Requisitos
-- Docker Desktop (Windows/Mac) o Docker + Docker Compose (Linux).
-- Para desarrollo sin Docker: Python 3.11+ y Node 18+.
+### Requirements
+- Docker Desktop (Windows/Mac) or Docker + Docker Compose (Linux).
+- For non-Docker development: Python 3.11+ and Node 18+.
 
-### Arranque con Docker Compose
+### Run with Docker Compose
 
 ```bash
-git clone <url-del-repo>
+git clone <repo-url>
 cd tfg-optimizacion-carteras
-cp .env.example .env       # crea tu .env y rellena los secretos (ver siguiente sección)
+cp .env.example .env       # create your .env and fill in the secrets (see next section)
 docker compose up -d
 ```
 
-Servicios:
+Services:
 - **Frontend** → http://localhost:5173
 - **Backend** (API + Swagger) → http://localhost:8000/docs
-- **PostgreSQL** → puerto 5432 (interno)
+- **PostgreSQL** → port 5432 (internal)
 
-La primera vez Docker construirá las imágenes (~3-5 min). Las migraciones Alembic se aplican automáticamente al arrancar el backend.
+The first run builds the images (~3-5 min). Alembic migrations are applied automatically when the backend starts.
 
-### Variables de entorno
+### Environment variables
 
-Crea `.env` en la raíz a partir de `.env.example`. Variables clave:
+Create `.env` in the root from `.env.example`. Key variables:
 
 ```
-POSTGRES_USER=tu_usuario
-POSTGRES_PASSWORD=<elige-una-password>
+POSTGRES_USER=your_user
+POSTGRES_PASSWORD=<choose-a-password>
 POSTGRES_DB=tfg_carteras
-DATABASE_URL=postgresql://tu_usuario:<password>@db:5432/tfg_carteras
+DATABASE_URL=postgresql://your_user:<password>@db:5432/tfg_carteras
 
-SECRET_KEY=<genera-una-aleatoria-de-64-chars>
+SECRET_KEY=<generate-a-random-64-char-string>
 ACCESS_TOKEN_EXPIRE_MINUTES=480
 
-ALPHA_VANTAGE_API_KEY=<tu-clave-gratis-en-alphavantage.co>
+ALPHA_VANTAGE_API_KEY=<free-key-at-alphavantage.co>
 ```
 
-> ⚠️ **No commitear nunca el `.env` real.** El `.gitignore` ya lo excluye. Usa credenciales propias, distintas de las de desarrollo.
+> ⚠️ **Never commit the real `.env`.** `.gitignore` already excludes it. Use your own credentials, different from the development ones.
 
-### Setup sin Docker (desarrollo local)
+### Non-Docker setup (local development)
 
 ```bash
 # Backend
 cd backend
 python -m venv venv
-venv/Scripts/activate         # Windows  ·  source venv/bin/activate en Linux/Mac
+venv/Scripts/activate         # Windows  ·  source venv/bin/activate on Linux/Mac
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 
-# Frontend (en otra terminal)
+# Frontend (in another terminal)
 cd frontend
 npm install
 npm run dev
@@ -230,37 +230,37 @@ npm run dev
 ## 🧪 Tests
 
 ```bash
-# Backend (68 tests: auth, portfolio CRUD, seguridad, Markowitz, Risk Parity, caché concurrente)
+# Backend (68 tests: auth, portfolio CRUD, security, Markowitz, Risk Parity, concurrent cache)
 cd backend
 pytest -q
 
-# Frontend (compilación TypeScript estricta)
+# Frontend (strict TypeScript compilation)
 cd frontend
 npm run build
 ```
 
 ---
 
-## 🔬 Decisiones técnicas relevantes
+## 🔬 Notable engineering decisions
 
-### Optimización
-- **SLSQP con multi-start** (1 punto equiponderado + 5-20 puntos Dirichlet aleatorios con semilla fija) para evitar mínimos locales.
-- **Fallback** a mínima varianza global si ninguna iteración converge bajo la restricción de volatilidad.
+### Optimization
+- **SLSQP with multi-start** (1 equal-weight point + 5-20 random Dirichlet points with a fixed seed) to avoid local minima.
+- **Fallback** to global minimum variance if no iteration converges under the volatility constraint.
 
-### Datos de mercado y concurrencia
-- **`auto_adjust=True`** en yfinance → los precios devueltos son **total return** (split + dividend adjusted), validado contra fuentes públicas.
-- **Caché TTL** en memoria (6 h precios, 1 h info, 15 min búsqueda) con métricas observables vía `/assets/cache-stats`.
-- **Lock single-flight por clave** para evitar el *cache stampede*: cuando N peticiones concurrentes piden el mismo activo con la caché fría, solo una descarga de la API externa; las demás esperan y leen el resultado ya cacheado. Verificado con un test de 10 hilos concurrentes que confirma una única descarga real.
-- **Bootstrap histórico** (no MVN) para Monte Carlo: preserva colas gordas, asimetría y autocorrelaciones parciales presentes en los datos reales, con corrección del sesgo del *drift* en espacio logarítmico.
+### Market data and concurrency
+- **`auto_adjust=True`** in yfinance → returned prices are **total return** (split- and dividend-adjusted), validated against public sources.
+- **In-memory TTL cache** (6 h prices, 1 h info, 15 min search) with metrics observable via `/assets/cache-stats`.
+- **Per-key single-flight lock** to prevent the *cache stampede*: when N concurrent requests ask for the same asset with a cold cache, only one hits the external API; the others wait and read the already-cached result. Verified with a 10-thread concurrency test that confirms a single real download.
+- **Historical bootstrap** (not MVN) for Monte Carlo: preserves the fat tails, skew, and partial autocorrelations present in real data, with a log-space correction of the drift bias.
 
-### Modelo financiero
-- **Regla del 110** modulada por perfil (±10pp) y horizonte (cap por plazo) para asset allocation recomendada.
-- **CVaR** calculado directamente sobre la distribución empírica (no asume normalidad).
-- **Rebalanceo simulado**: turnover real (½ Σ |w − target|) × 2 (compra + venta) × comisión, aplicado como haircut día a día.
+### Financial model
+- **Rule of 110** modulated by profile (±10pp) and horizon (capped by term) for the recommended asset allocation.
+- **CVaR** computed directly on the empirical distribution (no normality assumption).
+- **Simulated rebalancing**: real turnover (½ Σ |w − target|) × 2 (buy + sell) × commission, applied as a day-by-day haircut.
 
 ---
 
-## 📚 Referencias bibliográficas usadas
+## 📚 References
 
 - Markowitz, H. (1952). *Portfolio Selection*. Journal of Finance.
 - DeMiguel, V., Garlappi, L., Uppal, R. (2009). *Optimal Versus Naive Diversification: How Inefficient is the 1/N Portfolio Strategy?*
@@ -272,20 +272,20 @@ npm run build
 
 ---
 
-## 👤 Autor
+## 👤 Author
 
 **Rubén Moreno Fernández**
-Grado en Ingeniería Informática — Mención en Sistemas de Información
-Universidad de Málaga, 2026
+BSc in Computer Engineering — Information Systems track
+University of Málaga, 2026
 
-<!-- Añade tus enlaces para el CV:
-[LinkedIn](https://linkedin.com/in/tu-perfil) · [GitHub](https://github.com/tu-usuario)
+<!-- Add your links for recruiters:
+[LinkedIn](https://linkedin.com/in/your-profile) · [GitHub](https://github.com/your-username)
 -->
 
 ---
 
-## 📄 Licencia y descargo de responsabilidad
+## 📄 License and disclaimer
 
-Trabajo Fin de Grado — Universidad de Málaga, 2026. **Uso académico.**
+Bachelor's Thesis (TFG) — University of Málaga, 2026. **Academic use.**
 
-Este software se distribuye "tal cual", sin garantía de ningún tipo. Es un proyecto educativo y **no debe utilizarse como base para decisiones reales de inversión**. No constituye asesoramiento financiero, fiscal ni legal. El módulo de fiscalidad es una simplificación didáctica del IRPF español y no sustituye el asesoramiento de un profesional. Los datos de mercado proceden de proveedores externos (Yahoo Finance, Alpha Vantage) y pueden contener errores, retrasos o inexactitudes. El autor declina toda responsabilidad por el uso que terceros hagan de esta herramienta.
+This software is provided "as is", without warranty of any kind. It is an educational project and **must not be used as a basis for real investment decisions**. It does not constitute financial, tax, or legal advice. The tax module is a didactic simplification of the Spanish IRPF and is no substitute for professional advice. Market data comes from external providers (Yahoo Finance, Alpha Vantage) and may contain errors, delays, or inaccuracies. The author disclaims all liability for third-party use of this tool.
